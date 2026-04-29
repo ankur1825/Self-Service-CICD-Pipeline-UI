@@ -16,6 +16,15 @@ const severityColors = {
   LOW: 'success',
 };
 
+const findingCategories = [
+  'Container Vulnerability',
+  'Dependency Vulnerability',
+  'Code Security Finding',
+  'Static Code Security Finding',
+  'Policy Violation',
+  'Security Finding',
+];
+
 function VulnerabilitiesDashboard() {
   const [vulnerabilities, setVulnerabilities] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -49,7 +58,7 @@ function VulnerabilitiesDashboard() {
 
   useEffect(() => {
     if (selectedApp && userEmail) {
-      callBackend(`/vulnerabilities?email=${userEmail}&application=${selectedApp}`)
+      callBackend(`/security/findings?email=${userEmail}&application=${selectedApp}`)
         .then((data) => setVulnerabilities(Array.isArray(data) ? data : []))
         .catch((error) => {
           console.error('Error fetching vulnerabilities:', error);
@@ -61,14 +70,14 @@ function VulnerabilitiesDashboard() {
   const filteredVulnerabilities = vulnerabilities.filter(vuln => {
     const matchesTab =
       activeTab === 'ALL' ||
-      (activeTab === 'Trivy' && (!vuln.source || vuln.source === 'Trivy')) ||
-      (activeTab === 'OPA' && vuln.source === 'OPA') ||
-      (activeTab === 'OPA-Kubernetes' && vuln.source === 'OPA-Kubernetes') ||
-      (activeTab === 'SonarQube' && vuln.source === 'SonarQube');
+      vuln.category === activeTab;
 
     const matchesSearch =
       vuln.package_name?.toLowerCase().includes(searchText.toLowerCase()) ||
+      vuln.affected_component?.toLowerCase().includes(searchText.toLowerCase()) ||
       vuln.vulnerability_id?.toLowerCase().includes(searchText.toLowerCase()) ||
+      vuln.category?.toLowerCase().includes(searchText.toLowerCase()) ||
+      vuln.remediation?.toLowerCase().includes(searchText.toLowerCase()) ||
       vuln.description?.toLowerCase().includes(searchText.toLowerCase());
 
     return matchesTab && matchesSearch;
@@ -82,20 +91,22 @@ function VulnerabilitiesDashboard() {
 
   const exportCSV = () => {
     const csvRows = [
-      ['Target', 'Package', 'Installed Version', 'Vulnerability ID', 'Severity', 'AI Severity', 'Fixed Version', 'Risk Score', 'Line', 'Status', 'Scanned At', 'Source', 'Description'],
+      ['Finding ID', 'Category', 'Target', 'Affected Component', 'Installed Version', 'Reference', 'Severity', 'Recommended Fix', 'Risk Score', 'Line', 'Status', 'Detected At', 'Jenkins Job', 'Build Number', 'Description'],
       ...filteredVulnerabilities.map(vuln => [
+        vuln.finding_id,
+        vuln.category,
         vuln.target,
-        vuln.package_name,
+        vuln.affected_component || vuln.package_name,
         vuln.installed_version,
         vuln.vulnerability_id,
         vuln.severity,
-        vuln.predictedSeverity || '',
-        vuln.fixed_version,
+        vuln.remediation || vuln.fixed_version,
         vuln.risk_score,
         vuln.line || '',
         vuln.status || '',
         vuln.timestamp || '',
-        vuln.source || '',
+        vuln.jenkins_job || '',
+        vuln.build_number || '',
         vuln.description || ''
       ])
     ];
@@ -109,10 +120,12 @@ function VulnerabilitiesDashboard() {
   };
 
   const columns = [
-    { field: 'target', headerName: 'Target (File/Image)', width: 200 },
-    { field: 'package_name', headerName: 'Package', width: 150 },
-    { field: 'installed_version', headerName: 'Installed Version', width: 130 },
-    { field: 'vulnerability_id', headerName: 'Vuln ID', width: 200 },
+    { field: 'finding_id', headerName: 'Finding ID', width: 150 },
+    { field: 'category', headerName: 'Category', width: 190 },
+    { field: 'target', headerName: 'Target', width: 220 },
+    { field: 'affected_component', headerName: 'Affected Component', width: 180 },
+    { field: 'installed_version', headerName: 'Installed Version', width: 140 },
+    { field: 'vulnerability_id', headerName: 'Reference', width: 190 },
     {
       field: 'severity',
       headerName: 'Severity',
@@ -121,16 +134,7 @@ function VulnerabilitiesDashboard() {
         <Chip label={params.value} color={severityColors[params.value] || 'default'} size="small" />
       )
     },
-    {
-      field: 'predictedSeverity',
-      headerName: 'AI Severity',
-      width: 130,
-      renderCell: (params) =>
-        params.row.source === 'SonarQube' ? (
-          <Chip label={params.value || 'N/A'} color={severityColors[params.value] || 'default'} size="small" />
-        ) : ''
-    },
-    { field: 'fixed_version', headerName: 'Fixed Version', width: 130 },
+    { field: 'remediation', headerName: 'Recommended Fix', width: 320 },
     {
       field: 'risk_score',
       headerName: 'Risk Score',
@@ -142,15 +146,14 @@ function VulnerabilitiesDashboard() {
     { field: 'status', headerName: 'Status', width: 110 },
     {
       field: 'timestamp',
-      headerName: 'Scanned At',
+      headerName: 'Detected At',
       width: 180,
       renderCell: (params) => params.value ? new Date(params.value).toLocaleString() : 'N/A'
     },
-    { field: 'source', headerName: 'Source', width: 150 },
-    { field: 'description', headerName: 'Description / Remediation', width: 400 },
+    { field: 'description', headerName: 'Evidence', width: 360 },
     {
       field: 'jenkins_url',
-      headerName: 'Jenkins Job URL',
+      headerName: 'Build Trace',
       width: 250,
       renderCell: (params) => (
         params.value ? (
@@ -164,7 +167,7 @@ function VulnerabilitiesDashboard() {
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4 }}>
-      <Typography variant="h4" gutterBottom>Vulnerability Dashboard</Typography>
+      <Typography variant="h4" gutterBottom>Security Findings Dashboard</Typography>
 
       <FormControl fullWidth sx={{ my: 2 }}>
         <InputLabel>Select Application</InputLabel>
@@ -205,17 +208,16 @@ function VulnerabilitiesDashboard() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
         <Tabs value={activeTab} onChange={(e, val) => setActiveTab(val)}>
           <Tab label="All" value="ALL" />
-          <Tab label="Trivy" value="Trivy" />
-          <Tab label="OPA" value="OPA" />
-          <Tab label="OPA-Kubernetes" value="OPA-Kubernetes" />
-          <Tab label="SonarQube" value="SonarQube" />
+          {findingCategories.map((category) => (
+            <Tab key={category} label={category} value={category} />
+          ))}
         </Tabs>
       </Box>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item>
           <TextField
-            label="Search Package / Vuln / Description"
+            label="Search component / finding / remediation"
             variant="outlined"
             size="small"
             value={searchText}

@@ -4,12 +4,20 @@ replicaCount: 1
 
 image:
   repository: ankur1825/horizon-self-service-cicd-pipeline-ui-dashboard
-  tag: "1.3.1"
+  tag: "1.4.8"
   pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP
   port: 80
+
+backendAlias:
+  enabled: true
+  name: horizon-backend
+  port: 8000
+  targetPort: 8000
+  selector:
+    app: horizon-self-service-cicd-pipeline-backend
 
 serviceAccount:
   create: false
@@ -19,16 +27,25 @@ ingress:
   enabled: true
   className: nginx
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/use-regex: "true"
   hosts:
     - host: horizonrelevance.com
       paths:
-        - path: /pipeline(/|$)(.*)
+        - path: /pipeline/(.*)
           pathType: ImplementationSpecific
+
+  redirect:
+    enabled: true
+    annotations:
+      nginx.ingress.kubernetes.io/permanent-redirect: https://horizonrelevance.com/pipeline/
+    hosts:
+      - host: horizonrelevance.com
+        paths:
+          - path: /pipeline
+            pathType: Exact
 
 persistence:
   enabled: true
-  storageClass: gp2
+  storageClass: gp3
   accessMode: ReadWriteOnce
   size: 10Gi

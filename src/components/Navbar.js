@@ -1,6 +1,6 @@
 import './Navbar.css';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 
 function Navbar() {
     const navigate = useNavigate();
@@ -21,6 +21,13 @@ function Navbar() {
             <div className="auth-controls">
                 {user ? (
                     <>
+                        <Stack direction="row" spacing={0.5} className="nav-links">
+                            <Button color="inherit" size="small" onClick={() => navigate('/')}>Pipelines</Button>
+                            <Button color="inherit" size="small" onClick={() => navigate('/vulnerabilities')}>Findings</Button>
+                            <Button color="inherit" size="small" onClick={() => navigate('/client-settings')}>Client</Button>
+                            <Button color="inherit" size="small" onClick={() => navigate('/cloud-connector')}>Cloud</Button>
+                            <Button color="inherit" size="small" onClick={() => navigate('/license')}>License</Button>
+                        </Stack>
                         <span className="username">{user.fullName}</span>
                         <Button color="inherit" onClick={handleLogout}>Logout</Button>
                     </>

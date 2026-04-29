@@ -1,15 +1,15 @@
-{{- if .Values.ingress.enabled }}
+{{- if and .Values.ingress.enabled .Values.ingress.redirect.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Chart.Name }}
+  name: {{ .Chart.Name }}-redirect
   namespace: {{ .Values.namespaceOverride }}
   annotations:
-    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+    {{- toYaml .Values.ingress.redirect.annotations | nindent 4 }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
-  {{- range .Values.ingress.hosts }}
+  {{- range .Values.ingress.redirect.hosts }}
     - host: {{ .host }}
       http:
         paths:
@@ -22,9 +22,5 @@ spec:
                 port:
                   number: {{ $.Values.service.port }}
         {{- end }}
-  {{- end }}
-  {{- with .Values.ingress.tls }}
-  tls:
-    {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}
