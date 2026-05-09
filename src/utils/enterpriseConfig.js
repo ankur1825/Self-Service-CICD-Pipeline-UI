@@ -26,7 +26,7 @@ export const defaultLicenseConfig = {
   license_signature: '',
   license_type: 'trial',
   license_expires_at: '',
-  enabled_pipelines: ['Devops Pipeline', 'Test Devops Pipeline'],
+  enabled_pipelines: ['Devops Pipeline', 'Test Devops Pipeline', 'Prod Devops Pipeline'],
   enabled_features: [
     'build',
     'artifact_publish',
@@ -36,8 +36,12 @@ export const defaultLicenseConfig = {
     'static_application_security',
     'test_suites',
     'notifications',
+    'secret_management',
+    'prod_deploy',
   ],
-  allowed_environments: ['EKS-NONPROD'],
+  allowed_environments: ['DEV', 'QA', 'STAGE', 'EKS-NONPROD', 'EKS-PROD'],
+  license_mode: 'offline-file',
+  last_synced_at: '',
 };
 
 export const defaultCloudConfig = {
@@ -45,6 +49,14 @@ export const defaultCloudConfig = {
   ecr_registry: '',
   artifact_bucket: '',
   client_aws_role_arn: '',
+  nonprod_aws_role_arn: '',
+  source_aws_role_arn: '',
+  target_aws_role_arn: '',
+  dev_cluster_name: '',
+  qa_cluster_name: '',
+  stage_cluster_name: '',
+  prod_cluster_name: '',
+  namespace_strategy: 'auto',
   sns_topic_arn: '',
 };
 

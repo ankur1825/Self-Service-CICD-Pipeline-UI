@@ -22,6 +22,7 @@ const FEATURES = [
   'static_application_security',
   'test_suites',
   'notifications',
+  'secret_management',
   'prod_deploy',
   'ai_remediation',
 ];
@@ -34,6 +35,7 @@ function LicensePage() {
   const [license, setLicense] = useState(getLicenseConfig());
   const [status, setStatus] = useState(null);
   const [message, setMessage] = useState('');
+  const [syncing, setSyncing] = useState(false);
 
   const daysRemaining = useMemo(() => {
     if (!license.license_expires_at) return null;
@@ -53,6 +55,8 @@ function LicensePage() {
           enabled_pipelines: data.enabled_pipelines || prev.enabled_pipelines,
           enabled_features: data.enabled_features || prev.enabled_features,
           allowed_environments: data.allowed_environments || prev.allowed_environments,
+          license_mode: data.license_mode || prev.license_mode,
+          last_synced_at: data.last_synced_at || prev.last_synced_at,
         }));
       }
     });
@@ -72,6 +76,32 @@ function LicensePage() {
     setMessage(result?.error ? result.error : 'License settings saved.');
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    setMessage('');
+    try {
+      const result = await callBackend('/license/sync', 'POST', { force: true });
+      setStatus(result);
+      const nextLicense = {
+        ...license,
+        license_type: result.license_type || license.license_type,
+        license_expires_at: result.expires_at || license.license_expires_at,
+        enabled_pipelines: result.enabled_pipelines || license.enabled_pipelines,
+        enabled_features: result.enabled_features || license.enabled_features,
+        allowed_environments: result.allowed_environments || license.allowed_environments,
+        license_mode: result.license_mode || 'online-sync',
+        last_synced_at: result.last_synced_at || '',
+      };
+      setLicense(nextLicense);
+      saveLicenseConfig(nextLicense);
+      setMessage(result.message || 'License synced successfully.');
+    } catch (error) {
+      setMessage(error.message || 'License sync failed.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleReset = () => {
     setLicense(defaultLicenseConfig);
     saveLicenseConfig(defaultLicenseConfig);
@@ -88,6 +118,7 @@ function LicensePage() {
         <Stack direction="row" spacing={1}>
           <Chip label={status?.status || 'not validated'} color={status?.status === 'active' ? 'success' : 'default'} />
           <Chip label={status?.validation_mode || 'local'} variant="outlined" />
+          <Chip label={status?.license_mode || license.license_mode || 'offline-file'} variant="outlined" />
           {daysRemaining !== null && <Chip label={`${daysRemaining} days remaining`} color={daysRemaining > 7 ? 'primary' : 'warning'} />}
         </Stack>
       </Stack>
@@ -99,6 +130,18 @@ function LicensePage() {
           <Card sx={{ p: 2, borderRadius: 1 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>License Details</Typography>
             <Stack spacing={2}>
+              <TextField
+                label="License Mode"
+                value={license.license_mode || status?.license_mode || 'offline-file'}
+                fullWidth
+                InputProps={{ readOnly: true }}
+              />
+              <TextField
+                label="Last Synced At"
+                value={license.last_synced_at || status?.last_synced_at || 'Not synced'}
+                fullWidth
+                InputProps={{ readOnly: true }}
+              />
               <TextField
                 label="License Key"
                 type="password"
@@ -182,6 +225,9 @@ function LicensePage() {
 
       <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
         <Button variant="contained" onClick={handleSave}>Save And Validate</Button>
+        <Button variant="contained" color="secondary" onClick={handleSync} disabled={syncing}>
+          {syncing ? 'Syncing...' : 'Sync License'}
+        </Button>
         <Button variant="outlined" onClick={handleReset}>Reset</Button>
       </Stack>
     </Container>
