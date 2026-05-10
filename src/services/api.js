@@ -1,28 +1,30 @@
-import axios from 'axios';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/pipeline/api';
 
-//const BASE_URL = 'http://localhost:8000';
-const BASE_URL = `${window.location.origin}/pipeline/api`;
-//const BASE_URL = 'https://horizonrelevance.com/pipeline/api';
+export async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
 
-export const callBackend = async (endpoint, method = 'GET', data = {}) => {
-    try {
-        const config = {
-            method,
-            url: `${BASE_URL}${endpoint}`,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        };
+  const contentType = response.headers.get('content-type') || '';
+  const body = contentType.includes('application/json') ? await response.json() : await response.text();
 
-        // Only attach 'data' for POST/PUT/PATCH
-        if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
-            config.data = data;
-        }
+  if (!response.ok) {
+    const message = typeof body === 'string' ? body : body?.error || body?.message || response.statusText;
+    throw new Error(message);
+  }
 
-        const response = await axios(config);
-        return response.data;
-    } catch (error) {
-        console.error('API call failed:', error);
-        return { error: 'Failed to call backend' };
-    }
-};
+  return body;
+}
+
+export async function callBackend(path, method = 'GET', payload = undefined) {
+  return apiRequest(path, {
+    method,
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+  });
+}
+
+export default apiRequest;

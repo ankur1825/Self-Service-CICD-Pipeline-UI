@@ -1,0 +1,9 @@
+.git
+node_modules
+.DS_Store
+npm-debug.log*
+horizon-self-service-cicd-pipeline-ui-dashboard
+src/**/*bkp*
+src/**/*latest*
+src/**/*multiServices*
+src/**/pipelineForm copy.js

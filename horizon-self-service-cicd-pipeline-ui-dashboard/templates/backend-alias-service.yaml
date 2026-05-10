@@ -1,0 +1,20 @@
+{{- if .Values.backendAlias.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.backendAlias.name }}
+  namespace: {{ .Values.namespaceOverride }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/name: {{ .Values.backendAlias.name | quote }}
+spec:
+  type: ClusterIP
+  selector:
+{{- toYaml .Values.backendAlias.selector | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.backendAlias.port }}
+      targetPort: {{ .Values.backendAlias.targetPort }}
+      protocol: TCP
+{{- end }}

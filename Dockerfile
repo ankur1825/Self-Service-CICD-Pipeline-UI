@@ -1,18 +1,11 @@
-# Step 1: Build React app
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
+FROM nginx:1.29-alpine
 
-# Step 2: Serve via NGINX
-FROM nginx:alpine
-COPY --from=builder /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Make sure files are readable
-RUN chmod -R 755 /usr/share/nginx/html
+COPY build /usr/share/nginx/html
 
 EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://127.0.0.1/pipeline/ >/dev/null || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]
