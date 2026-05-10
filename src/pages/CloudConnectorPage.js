@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Alert, Button, Card, Container, Grid, Stack, TextField, Typography,
+  Alert, Button, Card, Container, FormControl, Grid, InputLabel, MenuItem, Select, Stack, TextField, Typography,
 } from '@mui/material';
 import {
   defaultCloudConfig,
@@ -65,6 +65,75 @@ function CloudConnectorPage() {
               onChange={(e) => setCloud((prev) => ({ ...prev, client_aws_role_arn: e.target.value }))}
               fullWidth
             />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              label="Non-Prod AWS Role ARN"
+              value={cloud.nonprod_aws_role_arn}
+              onChange={(e) => setCloud((prev) => ({ ...prev, nonprod_aws_role_arn: e.target.value }))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Source AWS Role ARN"
+              value={cloud.source_aws_role_arn}
+              onChange={(e) => setCloud((prev) => ({ ...prev, source_aws_role_arn: e.target.value }))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Target AWS Role ARN"
+              value={cloud.target_aws_role_arn}
+              onChange={(e) => setCloud((prev) => ({ ...prev, target_aws_role_arn: e.target.value }))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="DEV EKS Cluster"
+              value={cloud.dev_cluster_name}
+              onChange={(e) => setCloud((prev) => ({ ...prev, dev_cluster_name: e.target.value }))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="QA EKS Cluster"
+              value={cloud.qa_cluster_name}
+              onChange={(e) => setCloud((prev) => ({ ...prev, qa_cluster_name: e.target.value }))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="STAGE EKS Cluster"
+              value={cloud.stage_cluster_name}
+              onChange={(e) => setCloud((prev) => ({ ...prev, stage_cluster_name: e.target.value }))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="PROD EKS Cluster"
+              value={cloud.prod_cluster_name}
+              onChange={(e) => setCloud((prev) => ({ ...prev, prod_cluster_name: e.target.value }))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel>Namespace Strategy</InputLabel>
+              <Select
+                label="Namespace Strategy"
+                value={cloud.namespace_strategy}
+                onChange={(e) => setCloud((prev) => ({ ...prev, namespace_strategy: e.target.value }))}
+              >
+                <MenuItem value="auto">Auto per app/environment</MenuItem>
+                <MenuItem value="manual">Manual override per request</MenuItem>
+              </Select>
+            </FormControl>
           </Grid>
           <Grid item xs={12}>
             <TextField

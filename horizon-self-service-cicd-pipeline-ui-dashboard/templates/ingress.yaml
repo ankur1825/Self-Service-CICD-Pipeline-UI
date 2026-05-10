@@ -4,27 +4,30 @@ kind: Ingress
 metadata:
   name: {{ .Chart.Name }}
   namespace: {{ .Values.namespaceOverride }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+  {{- with .Values.ingress.annotations }}
   annotations:
-    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+{{ toYaml . | indent 4 }}
+  {{- end }}
 spec:
+  {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
   rules:
-  {{- range .Values.ingress.hosts }}
+    {{- range .Values.ingress.hosts }}
     - host: {{ .host }}
       http:
         paths:
-        {{- range .paths }}
+          {{- range .paths }}
           - path: {{ .path }}
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "horizon-self-service-cicd-pipeline-ui-dashboard.fullname" $ }}
+                name: {{ $.Chart.Name }}
                 port:
                   number: {{ $.Values.service.port }}
-        {{- end }}
-  {{- end }}
-  {{- with .Values.ingress.tls }}
-  tls:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+          {{- end }}
+    {{- end }}
 {{- end }}

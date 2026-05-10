@@ -18,17 +18,11 @@ function App() {
             <Navbar />
             <Routes>
                 <Route path="/" element={<PrivateRoute><PipelineForm /></PrivateRoute>} />
-                {/* <Route path="/" element={<Navigate to="/pipeline" />} /> */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/vulnerabilities" element={<PrivateRoute><VulnerabilitiesPage /></PrivateRoute>} />
                 <Route path="/license" element={<PrivateRoute><LicensePage /></PrivateRoute>} />
                 <Route path="/client-settings" element={<PrivateRoute><ClientSettingsPage /></PrivateRoute>} />
                 <Route path="/cloud-connector" element={<PrivateRoute><CloudConnectorPage /></PrivateRoute>} />
-                {/* <Route path="/pipeline" element={
-                    <PrivateRoute>
-                        <PipelineForm />
-                    </PrivateRoute>
-                } /> */}
             </Routes>
         </Router>
     );

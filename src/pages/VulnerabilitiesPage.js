@@ -19,6 +19,8 @@ const severityColors = {
 const findingCategories = [
   'Container Vulnerability',
   'Dependency Vulnerability',
+  'IaC Misconfiguration',
+  'Secret Exposure',
   'Code Security Finding',
   'Static Code Security Finding',
   'Policy Violation',
