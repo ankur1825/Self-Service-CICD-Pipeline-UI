@@ -1,9 +1,13 @@
 .git
-node_modules
 .DS_Store
-npm-debug.log*
+.containerignore
+.env
+.env.*
+node_modules
+src
+public
 horizon-self-service-cicd-pipeline-ui-dashboard
-src/**/*bkp*
-src/**/*latest*
-src/**/*multiServices*
-src/**/pipelineForm copy.js
+*.log
+*.map
+coverage
+tmp

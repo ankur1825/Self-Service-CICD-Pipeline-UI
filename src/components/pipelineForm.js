@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Container, TextField, FormControl, InputLabel, Select, MenuItem,
   Switch, FormControlLabel, Button, Typography, Box, Card, Grid,
-  Snackbar, Alert, Divider, Chip, Stack, FormHelperText, InputAdornment, Tooltip, IconButton
+  Snackbar, Alert, Divider, Chip, Stack, FormHelperText, InputAdornment, Tooltip, IconButton, ListSubheader
 } from '@mui/material';
 import {
   CloudOutlined, StorageOutlined, RouteOutlined, HealthAndSafetyOutlined,
@@ -13,16 +13,21 @@ import { callBackend } from '../services/api';
 import { getCloudConfig, getEnterprisePayload } from '../utils/enterpriseConfig';
 
 /* -------------------- Constants -------------------- */
-const SERVICES = [
-  'Self-Service CI/CD Pipeline',
-  'Devops Pipeline',
-  'Test Devops Pipeline',
-  'Prod Devops Pipeline',
-  'Multi-Cloud Deployment Manager',
-  'AI-Driven Monitoring & Incident Response',
-  'Cloud Cost Optimization Platform',
-  'Cloud Migration',
+const SERVICE_OPTIONS = [
+  { type: 'header', label: 'Horizon Secure SDLC Platform' },
+  { value: 'Devops Pipeline', label: 'Build & Deploy Pipeline' },
+  { value: 'Test Devops Pipeline', label: 'Validation Pipeline' },
+  { value: 'Prod Devops Pipeline', label: 'Production Release Pipeline' },
+  { type: 'header', label: 'Enterprise Cloud Operations' },
+  { value: 'Multi-Cloud Deployment Manager', label: 'Cloud Deployment Manager' },
+  { value: 'AI-Driven Monitoring & Incident Response', label: 'AIOps Monitoring & Incident Response' },
+  { value: 'Cloud Cost Optimization Platform', label: 'Cloud FinOps Optimization' },
+  { value: 'Cloud Migration', label: 'Cloud Migration Factory' },
 ];
+
+const SERVICE_LABELS = SERVICE_OPTIONS
+  .filter((option) => option.value)
+  .reduce((labels, option) => ({ ...labels, [option.value]: option.label }), {});
 
 const AWS_SERVICES = ['EC2', 'Security Group', 'S3 Bucket', 'IAM Role', 'RDS'];
 
@@ -60,21 +65,22 @@ const PRICE_FALLBACK = {
 
 const PROJECT_TYPES = ['Docker', 'Angular', 'SpringBoot', 'SpringBoot-Java11', 'NodeJs', 'WebComponent'];
 const REPO_TYPES = ['GitHub', 'BitBucket', 'CodeCommit', 'S3'];
-const TARGET_ENVS = ['DEV', 'QA', 'STAGE', 'EKS-NONPROD'];
-const PROD_TARGET_ENVS = ['PROD', 'EKS-PROD'];
-const TEST_TARGET_ENVS = ['DEV', 'QA', 'STAGE', 'EKS-NONPROD'];
+const TARGET_ENVS = ['DEV', 'QA', 'STAGE'];
+const PROD_TARGET_ENVS = ['PROD'];
+const PIPELINE_FORM_SX = { width: '100%', maxWidth: 960 };
 const DEVOPS_PANEL_SX = {
-  p: 1.5,
-  mb: 2,
+  p: 2.25,
+  mb: 2.25,
   border: '1px solid #222',
   borderRadius: 0,
   boxShadow: 'none',
   width: '100%',
-  maxWidth: 520,
+  maxWidth: 960,
 };
 const DEVOPS_FIELD_SX = {
-  '& .MuiInputBase-root': { height: 34, fontSize: 12 },
-  '& .MuiInputLabel-root': { fontSize: 12 },
+  '& .MuiInputBase-root': { minHeight: 42, fontSize: 14 },
+  '& .MuiInputLabel-root': { fontSize: 13 },
+  '& .MuiFormHelperText-root': { fontSize: 12 },
 };
 
 /* -------------------- Small utils -------------------- */
@@ -447,6 +453,7 @@ function PipelineForm() {
   const user = JSON.parse(localStorage.getItem('user'));
   const savedCloudConfig = getCloudConfig();
 
+  const [environmentCatalog, setEnvironmentCatalog] = useState([]);
   const [formData, setFormData] = useState({
     // generic
     service: '',
@@ -489,15 +496,15 @@ function PipelineForm() {
     repo_type: 'GitHub',
     repo_url: '',
     branch: 'main',
-    qg_sonarqube: true,
+    qg_sonarqube: false,
     qg_checkmarx: false,
     checkmarx_team: '',
-    qg_soapui: false,
     qg_jmeter: false,
     qg_selenium: false,
     qg_newman: false,
-    target_env: 'EKS-NONPROD', // EKS-PROD | EKS-NONPROD
+    target_env: 'DEV',
     notify_email: user?.email || (user?.username ? `${user.username}@horizonrelevance.com` : ''),
+    additional_notify_emails: '',
     aws_region: savedCloudConfig.aws_region || 'us-east-1',
     ecr_registry: savedCloudConfig.ecr_registry || '',
     ecr_repository: '',
@@ -525,17 +532,14 @@ function PipelineForm() {
     repo_type: 'GitHub',
     repo_url: '',
     branch: 'main',
-    qg_sonarqube: true,
+    qg_sonarqube: false,
     qg_checkmarx: false,
     checkmarx_team: '',
-    qg_trivy: true,
-    qg_opa: true,
-    qg_soapui: false,
+    qg_trivy: false,
+    qg_opa: false,
     qg_jmeter: false,
     qg_selenium: false,
     qg_newman: false,
-    qg_restassured: false,
-    qg_uft: false,
     image_uri: '',
     target_app_url: '',
     api_base_url: '',
@@ -553,6 +557,7 @@ function PipelineForm() {
     newman_fail_on_error: true,
     target_env: 'QA',
     notify_email: user?.email || (user?.username ? `${user.username}@horizonrelevance.com` : ''),
+    additional_notify_emails: '',
     aws_region: savedCloudConfig.aws_region || 'us-east-1',
     artifact_bucket: savedCloudConfig.artifact_bucket || '',
     client_aws_role_arn: savedCloudConfig.client_aws_role_arn || '',
@@ -594,6 +599,7 @@ function PipelineForm() {
     xid_array: '',
     approver: '',
     notify_email: user?.email || (user?.username ? `${user.username}@horizonrelevance.com` : ''),
+    additional_notify_emails: '',
     enable_notifications: false,
     sns_topic_arn: savedCloudConfig.sns_topic_arn || '',
   });
@@ -661,6 +667,28 @@ function PipelineForm() {
 
   /* -------------------- Hooks computed once (no conditional hooks) -------------------- */
   const targetCount = useMemo(() => parseCSV(formData.targetsText).length, [formData.targetsText]);
+  const devopsTargetEnvs = useMemo(() => {
+    const catalogEnvs = environmentCatalog
+      .filter((environment) => environment?.is_active !== false && ['DEV', 'QA', 'STAGE'].includes(environment.name))
+      .map((environment) => environment.name);
+    return catalogEnvs.length ? catalogEnvs : TARGET_ENVS;
+  }, [environmentCatalog]);
+
+  const testTargetEnvs = useMemo(() => devopsTargetEnvs, [devopsTargetEnvs]);
+
+  const prodSourceEnvs = useMemo(() => {
+    const catalogEnvs = environmentCatalog
+      .filter((environment) => environment?.is_active !== false && ['QA', 'STAGE'].includes(environment.name))
+      .map((environment) => environment.name);
+    return catalogEnvs.length ? catalogEnvs : ['STAGE'];
+  }, [environmentCatalog]);
+
+  const prodTargetEnvs = useMemo(() => {
+    const catalogEnvs = environmentCatalog
+      .filter((environment) => environment?.is_active !== false && environment.name === 'PROD')
+      .map((environment) => environment.name);
+    return catalogEnvs.length ? catalogEnvs : PROD_TARGET_ENVS;
+  }, [environmentCatalog]);
 
   /* -------------------- Effects -------------------- */
   useEffect(() => {
@@ -671,6 +699,42 @@ function PipelineForm() {
   }, [user, navigate]);
 
   useEffect(() => () => { if (intervalId) clearInterval(intervalId); }, [intervalId]);
+
+  useEffect(() => {
+    const loadEnvironmentCatalog = async () => {
+      try {
+        const data = await callBackend('/environment-catalog', 'GET');
+        setEnvironmentCatalog(data?.environments || []);
+      } catch (error) {
+        console.error('Failed to load Environment Catalog', error);
+      }
+    };
+    loadEnvironmentCatalog();
+  }, []);
+
+  useEffect(() => {
+    if (devopsTargetEnvs.length && !devopsTargetEnvs.includes(devopsForm.target_env)) {
+      setDevopsForm((current) => ({ ...current, target_env: devopsTargetEnvs[0] }));
+    }
+  }, [devopsTargetEnvs, devopsForm.target_env]);
+
+  useEffect(() => {
+    if (testTargetEnvs.length && !testTargetEnvs.includes(testDevopsForm.target_env)) {
+      setTestDevopsForm((current) => ({ ...current, target_env: testTargetEnvs[0] }));
+    }
+  }, [testTargetEnvs, testDevopsForm.target_env]);
+
+  useEffect(() => {
+    if (prodSourceEnvs.length && !prodSourceEnvs.includes(prodDevopsForm.source_env)) {
+      setProdDevopsForm((current) => ({ ...current, source_env: prodSourceEnvs[0] }));
+    }
+  }, [prodSourceEnvs, prodDevopsForm.source_env]);
+
+  useEffect(() => {
+    if (prodTargetEnvs.length && !prodTargetEnvs.includes(prodDevopsForm.target_env)) {
+      setProdDevopsForm((current) => ({ ...current, target_env: prodTargetEnvs[0] }));
+    }
+  }, [prodTargetEnvs, prodDevopsForm.target_env]);
 
   // Regions (AWS)
   useEffect(() => {
@@ -928,7 +992,7 @@ function PipelineForm() {
   // NEW: Devops Pipeline submit
   const submitDevops = async () => {
     // minimal validation
-    const required = ['project_name', 'project_type', 'repo_type', 'repo_url', 'branch', 'aws_region', 'ecr_registry', 'ecr_repository', 'artifact_bucket'];
+    const required = ['project_name', 'project_type', 'repo_type', 'repo_url', 'branch', 'target_env'];
     const missing = required.filter((k) => !devopsForm[k]);
     if (missing.length) {
       setSubmissionStatus(`❌ Missing fields: ${missing.join(', ')}`);
@@ -957,6 +1021,7 @@ function PipelineForm() {
       ENABLE_TRIVY: false,
       target_env: devopsForm.target_env,
       notify_email: devopsForm.notify_email.trim(),
+      additional_notify_emails: devopsForm.additional_notify_emails.trim(),
       aws_region: devopsForm.aws_region.trim(),
       ecr_registry: devopsForm.ecr_registry.trim(),
       ecr_repository: devopsForm.ecr_repository.trim(),
@@ -974,8 +1039,8 @@ function PipelineForm() {
       qa_namespace: devopsForm.qa_namespace.trim(),
       stage_namespace: devopsForm.stage_namespace.trim(),
       prod_namespace: devopsForm.prod_namespace.trim(),
-      enable_notifications: devopsForm.enable_notifications,
-      sns_topic_arn: devopsForm.sns_topic_arn.trim(),
+      enable_notifications: false,
+      sns_topic_arn: '',
     };
 
     try {
@@ -995,7 +1060,7 @@ function PipelineForm() {
   };
 
   const submitTestDevops = async () => {
-    const required = ['project_name', 'project_type', 'repo_type', 'repo_url', 'branch', 'aws_region'];
+    const required = ['project_name', 'project_type', 'repo_type', 'repo_url', 'branch', 'target_env'];
     const missing = required.filter((k) => !testDevopsForm[k]);
     if (missing.length) {
       setSubmissionStatus(`❌ Missing fields: ${missing.join(', ')}`);
@@ -1015,12 +1080,12 @@ function PipelineForm() {
       ENABLE_SONARQUBE: testDevopsForm.qg_sonarqube,
       ENABLE_CHECKMARX: testDevopsForm.qg_checkmarx,
       checkmarx_team: testDevopsForm.checkmarx_team.trim(),
-      ENABLE_SOAPUI: testDevopsForm.qg_soapui,
+      ENABLE_SOAPUI: false,
       ENABLE_JMETER: testDevopsForm.qg_jmeter,
       ENABLE_SELENIUM: testDevopsForm.qg_selenium,
       ENABLE_NEWMAN: testDevopsForm.qg_newman,
-      ENABLE_RESTASSURED: testDevopsForm.qg_restassured,
-      ENABLE_UFT: testDevopsForm.qg_uft,
+      ENABLE_RESTASSURED: false,
+      ENABLE_UFT: false,
       ENABLE_TRIVY: testDevopsForm.qg_trivy,
       ENABLE_OPA: testDevopsForm.qg_opa,
       image_uri: testDevopsForm.image_uri.trim(),
@@ -1040,13 +1105,14 @@ function PipelineForm() {
       newman_fail_on_error: testDevopsForm.newman_fail_on_error,
       target_env: testDevopsForm.target_env,
       notify_email: testDevopsForm.notify_email.trim(),
+      additional_notify_emails: testDevopsForm.additional_notify_emails.trim(),
       aws_region: testDevopsForm.aws_region.trim(),
       artifact_bucket: testDevopsForm.artifact_bucket.trim(),
       client_aws_role_arn: testDevopsForm.client_aws_role_arn.trim(),
       nonprod_aws_role_arn: testDevopsForm.nonprod_aws_role_arn.trim(),
       target_aws_role_arn: testDevopsForm.target_aws_role_arn.trim(),
-      enable_notifications: testDevopsForm.enable_notifications,
-      sns_topic_arn: testDevopsForm.sns_topic_arn.trim(),
+      enable_notifications: false,
+      sns_topic_arn: '',
     };
 
     try {
@@ -1068,13 +1134,8 @@ function PipelineForm() {
   const submitProdDevops = async () => {
     const required = [
       'project_name',
-      'artifact_bucket',
       'artifact_prefix',
-      'aws_region',
-      'source_ecr_registry',
-      'source_ecr_repository',
-      'target_ecr_registry',
-      'target_ecr_repository',
+      'source_env',
       'target_env',
     ];
     const missing = required.filter((k) => !prodDevopsForm[k]);
@@ -1119,8 +1180,9 @@ function PipelineForm() {
       xid_array: prodDevopsForm.xid_array.trim(),
       approver: prodDevopsForm.approver.trim(),
       notify_email: prodDevopsForm.notify_email.trim(),
-      enable_notifications: prodDevopsForm.enable_notifications,
-      sns_topic_arn: prodDevopsForm.sns_topic_arn.trim(),
+      additional_notify_emails: prodDevopsForm.additional_notify_emails.trim(),
+      enable_notifications: false,
+      sns_topic_arn: '',
     };
 
     try {
@@ -1386,15 +1448,9 @@ function PipelineForm() {
   const isCloudMigration = formData.service === 'Cloud Migration';
 
   return (
-    <Container maxWidth="md" style={{ marginTop: 20, marginBottom: 60 }}>
+    <Container maxWidth="lg" style={{ marginTop: 20, marginBottom: 60 }}>
       <Typography variant="h4" gutterBottom>
-        {isCICD ? 'Create Jenkins Pipeline'
-          : isDevops ? 'Devops Pipeline'
-          : isTestDevops ? 'Test Devops Pipeline'
-          : isProdDevops ? 'Prod Devops Pipeline'
-          : isMultiCloud ? 'Cloud Administration'
-          : isCloudMigration ? 'Cloud Migration'
-          : 'Create Request'}
+        {SERVICE_LABELS[formData.service] || 'Create Request'}
       </Typography>
 
       <form onSubmit={handleSubmit}>
@@ -1412,7 +1468,11 @@ function PipelineForm() {
         <FormControl fullWidth sx={{ mb: 2 }}>
           <InputLabel>Service</InputLabel>
           <Select name="service" value={formData.service} onChange={(e) => setFormData(s => ({ ...s, service: e.target.value }))} required>
-            {SERVICES.map((s) => (<MenuItem key={s} value={s}>{s}</MenuItem>))}
+            {SERVICE_OPTIONS.map((option) => (
+              option.type === 'header'
+                ? <ListSubheader key={option.label}>{option.label}</ListSubheader>
+                : <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+            ))}
           </Select>
         </FormControl>
 
@@ -1470,13 +1530,13 @@ function PipelineForm() {
 
         {/* ---------------- NEW: Devops Pipeline ---------------- */}
         {isDevops && (
-          <Box sx={{ width: '100%', maxWidth: 540 }}>
+          <Box sx={PIPELINE_FORM_SX}>
             {/* Parameters */}
             <Card sx={DEVOPS_PANEL_SX}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Parameters</Typography>
               <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>Project Information</Typography>
               <Grid container spacing={1.5}>
-                <Grid item xs={12} md={7}>
+                <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth label="Project Name" required
                     size="small"
@@ -1485,7 +1545,7 @@ function PipelineForm() {
                     onChange={(e) => setDevopsForm(s => ({ ...s, project_name: e.target.value }))}
                   />
                 </Grid>
-                <Grid item xs={12} md={5}>
+                <Grid item xs={12} md={6}>
                   <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
                     <InputLabel>Project Type</InputLabel>
                     <Select
@@ -1520,7 +1580,7 @@ function PipelineForm() {
                     onChange={(e) => setDevopsForm(s => ({ ...s, repo_url: e.target.value }))}
                   />
                 </Grid>
-                <Grid item xs={12} md={7}>
+                <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth label="Branch"
                     size="small"
@@ -1536,7 +1596,7 @@ function PipelineForm() {
             <Card sx={DEVOPS_PANEL_SX}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Deployment Options</Typography>
               <Grid container spacing={1.5}>
-                <Grid item xs={12} md={5}>
+                <Grid item xs={12} md={6}>
                   <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
                     <InputLabel>Target Environment Name</InputLabel>
                     <Select
@@ -1544,106 +1604,10 @@ function PipelineForm() {
                       label="Target Environment Name"
                       onChange={(e)=>setDevopsForm(s=>({...s,target_env:e.target.value}))}
                     >
-                      {TARGET_ENVS.map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
+                      {devopsTargetEnvs.map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
                     </Select>
+                    <FormHelperText>Infrastructure details are resolved from the Environment Catalog.</FormHelperText>
                   </FormControl>
-                </Grid>
-                <Grid item xs={12} md={5}>
-                  <TextField
-                    fullWidth label="AWS Region" required
-                    size="small"
-                    sx={DEVOPS_FIELD_SX}
-                    value={devopsForm.aws_region}
-                    onChange={(e)=>setDevopsForm(s=>({...s,aws_region:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={7}>
-                  <TextField
-                    fullWidth label="ECR Registry / Account ID" required
-                    size="small"
-                    sx={DEVOPS_FIELD_SX}
-                    placeholder="426946630837"
-                    value={devopsForm.ecr_registry}
-                    onChange={(e)=>setDevopsForm(s=>({...s,ecr_registry:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={7}>
-                  <TextField
-                    fullWidth label="ECR Repository Name" required
-                    size="small"
-                    sx={DEVOPS_FIELD_SX}
-                    placeholder="my-application"
-                    value={devopsForm.ecr_repository}
-                    onChange={(e)=>setDevopsForm(s=>({...s,ecr_repository:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={8}>
-                  <TextField
-                    fullWidth label="Artifact S3 Bucket" required
-                    size="small"
-                    sx={DEVOPS_FIELD_SX}
-                    placeholder="client-artifacts-bucket"
-                    value={devopsForm.artifact_bucket}
-                    onChange={(e)=>setDevopsForm(s=>({...s,artifact_bucket:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={12}>
-                  <TextField
-                    fullWidth label="Client AWS Role ARN"
-                    size="small"
-                    sx={DEVOPS_FIELD_SX}
-                    placeholder="arn:aws:iam::123456789012:role/DevopsPipelineRole"
-                    value={devopsForm.client_aws_role_arn}
-                    onChange={(e)=>setDevopsForm(s=>({...s,client_aws_role_arn:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={12}>
-                  <TextField
-                    fullWidth label="Non-Prod AWS Role ARN"
-                    size="small"
-                    sx={DEVOPS_FIELD_SX}
-                    placeholder="arn:aws:iam::123456789012:role/NonProdDeploymentRole"
-                    value={devopsForm.nonprod_aws_role_arn}
-                    onChange={(e)=>setDevopsForm(s=>({...s,nonprod_aws_role_arn:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="DEV Cluster" size="small" sx={DEVOPS_FIELD_SX}
-                    value={devopsForm.dev_cluster_name}
-                    onChange={(e)=>setDevopsForm(s=>({...s,dev_cluster_name:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="QA Cluster" size="small" sx={DEVOPS_FIELD_SX}
-                    value={devopsForm.qa_cluster_name}
-                    onChange={(e)=>setDevopsForm(s=>({...s,qa_cluster_name:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="STAGE Cluster" size="small" sx={DEVOPS_FIELD_SX}
-                    value={devopsForm.stage_cluster_name}
-                    onChange={(e)=>setDevopsForm(s=>({...s,stage_cluster_name:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
-                    <InputLabel>Namespace Strategy</InputLabel>
-                    <Select value={devopsForm.namespace_strategy} label="Namespace Strategy" onChange={(e)=>setDevopsForm(s=>({...s,namespace_strategy:e.target.value}))}>
-                      <MenuItem value="auto">Auto</MenuItem>
-                      <MenuItem value="manual">Manual</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} md={12}>
-                  <TextField
-                    fullWidth label="Namespace Override"
-                    size="small"
-                    sx={DEVOPS_FIELD_SX}
-                    disabled={devopsForm.namespace_strategy !== 'manual'}
-                    placeholder="payments-qa"
-                    value={devopsForm.app_namespace}
-                    onChange={(e)=>setDevopsForm(s=>({...s,app_namespace:e.target.value}))}
-                  />
                 </Grid>
               </Grid>
             </Card>
@@ -1652,27 +1616,25 @@ function PipelineForm() {
             <Card sx={DEVOPS_PANEL_SX}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Notification Settings</Typography>
               <Grid container spacing={1.5}>
-                <Grid item xs={12} md={8}>
+                <Grid item xs={12} md={6}>
                   <TextField
-                    type="email" fullWidth label="E-Mail Address"
+                    type="email" fullWidth label="Requester Notification Email"
                     size="small"
                     sx={DEVOPS_FIELD_SX}
                     value={devopsForm.notify_email}
                     onChange={(e)=>setDevopsForm(s=>({...s,notify_email:e.target.value}))}
                   />
                 </Grid>
-                <Grid item xs={12}>
-                  <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={devopsForm.enable_notifications} onChange={(e)=>setDevopsForm(s=>({...s,enable_notifications:e.target.checked}))} />} label="Send SNS notification" />
-                </Grid>
                 <Grid item xs={12} md={12}>
                   <TextField
-                    fullWidth label="SNS Topic ARN"
+                    fullWidth label="Additional Recipients"
+                    placeholder="qa.lead@example.com, product.owner@example.com"
                     size="small"
                     sx={DEVOPS_FIELD_SX}
-                    disabled={!devopsForm.enable_notifications}
-                    value={devopsForm.sns_topic_arn}
-                    onChange={(e)=>setDevopsForm(s=>({...s,sns_topic_arn:e.target.value}))}
+                    value={devopsForm.additional_notify_emails}
+                    onChange={(e)=>setDevopsForm(s=>({...s,additional_notify_emails:e.target.value}))}
                   />
+                  <FormHelperText>Pipeline status is sent to the requester by default; add comma-separated recipients when needed.</FormHelperText>
                 </Grid>
               </Grid>
             </Card>
@@ -1685,17 +1647,17 @@ function PipelineForm() {
 
         {/* ---------------- Test Devops Pipeline ---------------- */}
         {isTestDevops && (
-          <Box sx={{ width: '100%', maxWidth: 620 }}>
+          <Box sx={PIPELINE_FORM_SX}>
             <Card sx={DEVOPS_PANEL_SX}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Test Target</Typography>
               <Grid container spacing={1.5}>
-                <Grid item xs={12} md={7}>
+                <Grid item xs={12} md={6}>
                   <TextField fullWidth required label="Project Name" size="small" sx={DEVOPS_FIELD_SX}
                     value={testDevopsForm.project_name}
                     onChange={(e)=>setTestDevopsForm(s=>({...s,project_name:e.target.value}))}
                   />
                 </Grid>
-                <Grid item xs={12} md={5}>
+                <Grid item xs={12} md={6}>
                   <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
                     <InputLabel>Project Type</InputLabel>
                     <Select value={testDevopsForm.project_type} label="Project Type" onChange={(e)=>setTestDevopsForm(s=>({...s,project_type:e.target.value}))} required>
@@ -1730,7 +1692,7 @@ function PipelineForm() {
                     onChange={(e)=>setTestDevopsForm(s=>({...s,image_uri:e.target.value}))}
                   />
                 </Grid>
-                <Grid item xs={12} md={5}>
+                <Grid item xs={12} md={8}>
                   <TextField fullWidth label="Deployed App URL" size="small" sx={DEVOPS_FIELD_SX}
                     placeholder="https://qa.example.com"
                     value={testDevopsForm.target_app_url}
@@ -1743,17 +1705,47 @@ function PipelineForm() {
             <Card sx={DEVOPS_PANEL_SX}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Validation Gates</Typography>
               <Stack spacing={0.25}>
-                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_sonarqube} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_sonarqube:e.target.checked}))} />} label="Code Quality Scan" />
-                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_checkmarx} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_checkmarx:e.target.checked}))} />} label="Static Security Scan" />
-                {testDevopsForm.qg_checkmarx && (
-                  <TextField fullWidth label="Security Review Team" size="small" sx={DEVOPS_FIELD_SX}
-                    value={testDevopsForm.checkmarx_team}
-                    onChange={(e)=>setTestDevopsForm(s=>({...s,checkmarx_team:e.target.value}))}
-                  />
-                )}
-                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_trivy} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_trivy:e.target.checked}))} />} label="Container / IaC Vulnerability Scan" />
-                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_opa} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_opa:e.target.checked}))} />} label="Policy Validation" />
                 <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_selenium} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_selenium:e.target.checked}))} />} label="UI End-to-End Test" />
+                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_newman} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_newman:e.target.checked}))} />} label="API Regression Test" />
+                {testDevopsForm.qg_newman && (
+                  <Grid container spacing={1} sx={{ pl: 3, pr: 1, py: 1 }}>
+                    <Grid item xs={12}>
+                      <TextField fullWidth label="API Base URL" size="small" sx={DEVOPS_FIELD_SX}
+                        placeholder="https://qa-api.example.com or deployed app URL"
+                        value={testDevopsForm.api_base_url}
+                        onChange={(e)=>setTestDevopsForm(s=>({...s,api_base_url:e.target.value}))}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField fullWidth label="API Collection Path" size="small" sx={DEVOPS_FIELD_SX}
+                        value={testDevopsForm.newman_collection_path}
+                        onChange={(e)=>setTestDevopsForm(s=>({...s,newman_collection_path:e.target.value}))}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField fullWidth label="API Environment Path" size="small" sx={DEVOPS_FIELD_SX}
+                        value={testDevopsForm.newman_environment_path}
+                        onChange={(e)=>setTestDevopsForm(s=>({...s,newman_environment_path:e.target.value}))}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={7}>
+                      <TextField fullWidth label="Iteration Data File" size="small" sx={DEVOPS_FIELD_SX}
+                        placeholder="tests/api/data/qa-users.json"
+                        value={testDevopsForm.newman_data_file}
+                        onChange={(e)=>setTestDevopsForm(s=>({...s,newman_data_file:e.target.value}))}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={5}>
+                      <TextField fullWidth label="Timeout (ms)" size="small" sx={DEVOPS_FIELD_SX}
+                        value={testDevopsForm.newman_timeout_ms}
+                        onChange={(e)=>setTestDevopsForm(s=>({...s,newman_timeout_ms:e.target.value}))}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.newman_fail_on_error} onChange={(e)=>setTestDevopsForm(s=>({...s,newman_fail_on_error:e.target.checked}))} />} label="Fail pipeline when API regression tests fail" />
+                    </Grid>
+                  </Grid>
+                )}
                 <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_jmeter} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_jmeter:e.target.checked}))} />} label="Performance Test" />
                 {testDevopsForm.qg_jmeter && (
                   <Grid container spacing={1} sx={{ pl: 3, pr: 1, py: 1 }}>
@@ -1802,101 +1794,42 @@ function PipelineForm() {
                     </Grid>
                   </Grid>
                 )}
-                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_newman} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_newman:e.target.checked}))} />} label="API Regression Test" />
-                {testDevopsForm.qg_newman && (
-                  <Grid container spacing={1} sx={{ pl: 3, pr: 1, py: 1 }}>
-                    <Grid item xs={12}>
-                      <TextField fullWidth label="API Base URL" size="small" sx={DEVOPS_FIELD_SX}
-                        placeholder="https://qa-api.example.com or deployed app URL"
-                        value={testDevopsForm.api_base_url}
-                        onChange={(e)=>setTestDevopsForm(s=>({...s,api_base_url:e.target.value}))}
-                      />
-                    </Grid>
-                    <Grid item xs={12}>
-                      <TextField fullWidth label="API Collection Path" size="small" sx={DEVOPS_FIELD_SX}
-                        value={testDevopsForm.newman_collection_path}
-                        onChange={(e)=>setTestDevopsForm(s=>({...s,newman_collection_path:e.target.value}))}
-                      />
-                    </Grid>
-                    <Grid item xs={12}>
-                      <TextField fullWidth label="API Environment Path" size="small" sx={DEVOPS_FIELD_SX}
-                        value={testDevopsForm.newman_environment_path}
-                        onChange={(e)=>setTestDevopsForm(s=>({...s,newman_environment_path:e.target.value}))}
-                      />
-                    </Grid>
-                    <Grid item xs={12} md={7}>
-                      <TextField fullWidth label="Iteration Data File" size="small" sx={DEVOPS_FIELD_SX}
-                        placeholder="tests/api/data/qa-users.json"
-                        value={testDevopsForm.newman_data_file}
-                        onChange={(e)=>setTestDevopsForm(s=>({...s,newman_data_file:e.target.value}))}
-                      />
-                    </Grid>
-                    <Grid item xs={12} md={5}>
-                      <TextField fullWidth label="Timeout (ms)" size="small" sx={DEVOPS_FIELD_SX}
-                        value={testDevopsForm.newman_timeout_ms}
-                        onChange={(e)=>setTestDevopsForm(s=>({...s,newman_timeout_ms:e.target.value}))}
-                      />
-                    </Grid>
-                    <Grid item xs={12}>
-                      <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.newman_fail_on_error} onChange={(e)=>setTestDevopsForm(s=>({...s,newman_fail_on_error:e.target.checked}))} />} label="Fail pipeline when API regression tests fail" />
-                    </Grid>
-                  </Grid>
+                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_sonarqube} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_sonarqube:e.target.checked}))} />} label="Code Quality Scan" />
+                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_checkmarx} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_checkmarx:e.target.checked}))} />} label="Static Security Scan" />
+                {testDevopsForm.qg_checkmarx && (
+                  <TextField fullWidth label="Security Review Team" size="small" sx={DEVOPS_FIELD_SX}
+                    value={testDevopsForm.checkmarx_team}
+                    onChange={(e)=>setTestDevopsForm(s=>({...s,checkmarx_team:e.target.value}))}
+                  />
                 )}
-                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_soapui} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_soapui:e.target.checked}))} />} label="API Contract Test" />
-                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_restassured} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_restassured:e.target.checked}))} />} label="API Functional Test" />
-                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_uft} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_uft:e.target.checked}))} />} label="Functional Test" />
+                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_trivy} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_trivy:e.target.checked}))} />} label="Container / IaC Vulnerability Scan" />
+                <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.qg_opa} onChange={(e)=>setTestDevopsForm(s=>({...s,qg_opa:e.target.checked}))} />} label="Policy Validation" />
               </Stack>
             </Card>
 
             <Card sx={DEVOPS_PANEL_SX}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Execution & Results</Typography>
               <Grid container spacing={1.5}>
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={6}>
                   <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
                     <InputLabel>Environment</InputLabel>
                     <Select value={testDevopsForm.target_env} label="Environment" onChange={(e)=>setTestDevopsForm(s=>({...s,target_env:e.target.value}))}>
-                      {TEST_TARGET_ENVS.map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
+                      {testTargetEnvs.map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
                     </Select>
+                    <FormHelperText>Execution settings are resolved from the Environment Catalog.</FormHelperText>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} md={4}>
-                  <TextField fullWidth label="AWS Region" size="small" sx={DEVOPS_FIELD_SX}
-                    value={testDevopsForm.aws_region}
-                    onChange={(e)=>setTestDevopsForm(s=>({...s,aws_region:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={8}>
-                  <TextField fullWidth label="Artifact S3 Bucket" size="small" sx={DEVOPS_FIELD_SX}
-                    value={testDevopsForm.artifact_bucket}
-                    onChange={(e)=>setTestDevopsForm(s=>({...s,artifact_bucket:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField fullWidth label="Client AWS Role ARN" size="small" sx={DEVOPS_FIELD_SX}
-                    value={testDevopsForm.client_aws_role_arn}
-                    onChange={(e)=>setTestDevopsForm(s=>({...s,client_aws_role_arn:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField fullWidth label="Non-Prod AWS Role ARN" size="small" sx={DEVOPS_FIELD_SX}
-                    value={testDevopsForm.nonprod_aws_role_arn}
-                    onChange={(e)=>setTestDevopsForm(s=>({...s,nonprod_aws_role_arn:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={8}>
-                  <TextField type="email" fullWidth label="E-Mail Address" size="small" sx={DEVOPS_FIELD_SX}
+                <Grid item xs={12} md={6}>
+                  <TextField type="email" fullWidth label="Requester Notification Email" size="small" sx={DEVOPS_FIELD_SX}
                     value={testDevopsForm.notify_email}
                     onChange={(e)=>setTestDevopsForm(s=>({...s,notify_email:e.target.value}))}
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={testDevopsForm.enable_notifications} onChange={(e)=>setTestDevopsForm(s=>({...s,enable_notifications:e.target.checked}))} />} label="Send SNS notification" />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField fullWidth label="SNS Topic ARN" size="small" sx={DEVOPS_FIELD_SX}
-                    disabled={!testDevopsForm.enable_notifications}
-                    value={testDevopsForm.sns_topic_arn}
-                    onChange={(e)=>setTestDevopsForm(s=>({...s,sns_topic_arn:e.target.value}))}
+                  <TextField fullWidth label="Additional Recipients" size="small" sx={DEVOPS_FIELD_SX}
+                    placeholder="qa.lead@example.com, product.owner@example.com"
+                    value={testDevopsForm.additional_notify_emails}
+                    onChange={(e)=>setTestDevopsForm(s=>({...s,additional_notify_emails:e.target.value}))}
                   />
                 </Grid>
               </Grid>
@@ -1910,20 +1843,14 @@ function PipelineForm() {
 
         {/* ---------------- Prod Devops Pipeline ---------------- */}
         {isProdDevops && (
-          <Box sx={{ width: '100%', maxWidth: 620 }}>
+          <Box sx={PIPELINE_FORM_SX}>
             <Card sx={DEVOPS_PANEL_SX}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Release Artifact</Typography>
               <Grid container spacing={1.5}>
-                <Grid item xs={12} md={7}>
+                <Grid item xs={12} md={6}>
                   <TextField fullWidth required label="Project Name" size="small" sx={DEVOPS_FIELD_SX}
                     value={prodDevopsForm.project_name}
                     onChange={(e)=>setProdDevopsForm(s=>({...s,project_name:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={7}>
-                  <TextField fullWidth required label="Artifact S3 Bucket" size="small" sx={DEVOPS_FIELD_SX}
-                    value={prodDevopsForm.artifact_bucket}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,artifact_bucket:e.target.value}))}
                   />
                 </Grid>
                 <Grid item xs={12} md={12}>
@@ -1932,79 +1859,17 @@ function PipelineForm() {
                     value={prodDevopsForm.artifact_prefix}
                     onChange={(e)=>setProdDevopsForm(s=>({...s,artifact_prefix:e.target.value}))}
                   />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="image.json Path" size="small" sx={DEVOPS_FIELD_SX}
-                    placeholder="defaults to <prefix>/image.json"
-                    value={prodDevopsForm.image_json_path}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,image_json_path:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="templateconfiguration.json Path" size="small" sx={DEVOPS_FIELD_SX}
-                    placeholder="defaults to <prefix>/templateconfiguration.json"
-                    value={prodDevopsForm.template_config_path}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,template_config_path:e.target.value}))}
-                  />
-                </Grid>
-              </Grid>
-            </Card>
-
-            <Card sx={DEVOPS_PANEL_SX}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Promotion</Typography>
-              <Grid container spacing={1.5}>
-                <Grid item xs={12} md={4}>
-                  <TextField fullWidth label="Source Environment" size="small" sx={DEVOPS_FIELD_SX}
-                    value={prodDevopsForm.source_env}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,source_env:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
-                    <InputLabel>Target Environment</InputLabel>
-                    <Select value={prodDevopsForm.target_env} label="Target Environment" onChange={(e)=>setProdDevopsForm(s=>({...s,target_env:e.target.value}))}>
-                      {PROD_TARGET_ENVS.map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <TextField fullWidth required label="AWS Region" size="small" sx={DEVOPS_FIELD_SX}
-                    value={prodDevopsForm.aws_region}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,aws_region:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth required label="Source ECR Registry / Account ID" size="small" sx={DEVOPS_FIELD_SX}
-                    value={prodDevopsForm.source_ecr_registry}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,source_ecr_registry:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth required label="Source ECR Repository" size="small" sx={DEVOPS_FIELD_SX}
-                    value={prodDevopsForm.source_ecr_repository}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,source_ecr_repository:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth required label="Target ECR Registry / Account ID" size="small" sx={DEVOPS_FIELD_SX}
-                    value={prodDevopsForm.target_ecr_registry}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,target_ecr_registry:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth required label="Target ECR Repository" size="small" sx={DEVOPS_FIELD_SX}
-                    value={prodDevopsForm.target_ecr_repository}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,target_ecr_repository:e.target.value}))}
-                  />
+                  <FormHelperText>image.json and templateconfiguration.json are resolved from this prefix unless custom paths are provided by automation.</FormHelperText>
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <TextField fullWidth label="Source Image Tag" size="small" sx={DEVOPS_FIELD_SX}
+                    placeholder="Optional. Uses image.json when blank."
                     value={prodDevopsForm.source_image_tag}
                     onChange={(e)=>setProdDevopsForm(s=>({...s,source_image_tag:e.target.value}))}
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="Production Tag(s)" size="small" sx={DEVOPS_FIELD_SX}
+                  <TextField fullWidth label="Production Tag" size="small" sx={DEVOPS_FIELD_SX}
                     value={prodDevopsForm.target_image_tag}
                     onChange={(e)=>setProdDevopsForm(s=>({...s,target_image_tag:e.target.value}))}
                   />
@@ -2013,51 +1878,33 @@ function PipelineForm() {
             </Card>
 
             <Card sx={DEVOPS_PANEL_SX}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Approval, Secrets & Notification</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Promotion</Typography>
               <Grid container spacing={1.5}>
-                <Grid item xs={12}>
-                  <TextField fullWidth label="Client AWS Role ARN" size="small" sx={DEVOPS_FIELD_SX}
-                    value={prodDevopsForm.client_aws_role_arn}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,client_aws_role_arn:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField fullWidth label="Source AWS Role ARN" size="small" sx={DEVOPS_FIELD_SX}
-                    placeholder="Reads non-prod S3/ECR"
-                    value={prodDevopsForm.source_aws_role_arn}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,source_aws_role_arn:e.target.value}))}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField fullWidth label="Target AWS Role ARN" size="small" sx={DEVOPS_FIELD_SX}
-                    placeholder="Writes prod ECR and deploys prod EKS"
-                    value={prodDevopsForm.target_aws_role_arn}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,target_aws_role_arn:e.target.value}))}
-                  />
-                </Grid>
                 <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="PROD Cluster" size="small" sx={DEVOPS_FIELD_SX}
-                    value={prodDevopsForm.prod_cluster_name}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,prod_cluster_name:e.target.value}))}
-                  />
+                  <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
+                    <InputLabel>Source Environment</InputLabel>
+                    <Select value={prodDevopsForm.source_env} label="Source Environment" onChange={(e)=>setProdDevopsForm(s=>({...s,source_env:e.target.value}))}>
+                      {prodSourceEnvs.map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
+                    </Select>
+                  </FormControl>
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
-                    <InputLabel>Namespace Strategy</InputLabel>
-                    <Select value={prodDevopsForm.namespace_strategy} label="Namespace Strategy" onChange={(e)=>setProdDevopsForm(s=>({...s,namespace_strategy:e.target.value}))}>
-                      <MenuItem value="auto">Auto</MenuItem>
-                      <MenuItem value="manual">Manual</MenuItem>
+                    <InputLabel>Target Environment</InputLabel>
+                    <Select value={prodDevopsForm.target_env} label="Target Environment" onChange={(e)=>setProdDevopsForm(s=>({...s,target_env:e.target.value}))}>
+                      {prodTargetEnvs.map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
                     </Select>
                   </FormControl>
                 </Grid>
                 <Grid item xs={12}>
-                  <TextField fullWidth label="Namespace Override" size="small" sx={DEVOPS_FIELD_SX}
-                    disabled={prodDevopsForm.namespace_strategy !== 'manual'}
-                    placeholder="payments-prod"
-                    value={prodDevopsForm.app_namespace}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,app_namespace:e.target.value}))}
-                  />
+                  <FormHelperText>Artifact bucket, ECR registry, roles, cluster, namespace, and account mapping are resolved from the Environment Catalog.</FormHelperText>
                 </Grid>
+              </Grid>
+            </Card>
+
+            <Card sx={DEVOPS_PANEL_SX}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Approval, Secrets & Notification</Typography>
+              <Grid container spacing={1.5}>
                 <Grid item xs={12} md={6}>
                   <TextField fullWidth label="Approver" size="small" sx={DEVOPS_FIELD_SX}
                     value={prodDevopsForm.approver}
@@ -2068,27 +1915,24 @@ function PipelineForm() {
                   <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={prodDevopsForm.secret_enabled} onChange={(e)=>setProdDevopsForm(s=>({...s,secret_enabled:e.target.checked}))} />} label="Create / update environment secrets" />
                 </Grid>
                 <Grid item xs={12}>
-                  <TextField fullWidth label="XID Array" size="small" sx={DEVOPS_FIELD_SX}
+                  <TextField fullWidth label="Secret Input Array" size="small" sx={DEVOPS_FIELD_SX}
                     disabled={!prodDevopsForm.secret_enabled}
                     placeholder="xid1,xid2,xid3"
                     value={prodDevopsForm.xid_array}
                     onChange={(e)=>setProdDevopsForm(s=>({...s,xid_array:e.target.value}))}
                   />
                 </Grid>
-                <Grid item xs={12} md={8}>
-                  <TextField type="email" fullWidth label="E-Mail Address" size="small" sx={DEVOPS_FIELD_SX}
+                <Grid item xs={12} md={6}>
+                  <TextField type="email" fullWidth label="Requester Notification Email" size="small" sx={DEVOPS_FIELD_SX}
                     value={prodDevopsForm.notify_email}
                     onChange={(e)=>setProdDevopsForm(s=>({...s,notify_email:e.target.value}))}
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <FormControlLabel sx={{ '& .MuiFormControlLabel-label': { fontSize: 12 } }} control={<Switch size="small" checked={prodDevopsForm.enable_notifications} onChange={(e)=>setProdDevopsForm(s=>({...s,enable_notifications:e.target.checked}))} />} label="Send SNS notification" />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField fullWidth label="SNS Topic ARN" size="small" sx={DEVOPS_FIELD_SX}
-                    disabled={!prodDevopsForm.enable_notifications}
-                    value={prodDevopsForm.sns_topic_arn}
-                    onChange={(e)=>setProdDevopsForm(s=>({...s,sns_topic_arn:e.target.value}))}
+                  <TextField fullWidth label="Additional Recipients" size="small" sx={DEVOPS_FIELD_SX}
+                    placeholder="release.manager@example.com, qa.lead@example.com"
+                    value={prodDevopsForm.additional_notify_emails}
+                    onChange={(e)=>setProdDevopsForm(s=>({...s,additional_notify_emails:e.target.value}))}
                   />
                 </Grid>
               </Grid>

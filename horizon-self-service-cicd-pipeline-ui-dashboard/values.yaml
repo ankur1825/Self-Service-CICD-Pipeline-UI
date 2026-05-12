@@ -3,8 +3,8 @@ namespaceOverride: horizon-relevance-dev
 replicaCount: 1
 
 image:
-  repository: ankur1825/horizon-self-service-cicd-pipeline-ui-dashboard
-  tag: "1.4.16"
+  repository: 426946630837.dkr.ecr.us-east-1.amazonaws.com/horizon/frontend
+  tag: "1.4.19"
   pullPolicy: Always
 
 service:

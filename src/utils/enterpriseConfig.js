@@ -72,5 +72,4 @@ export const saveCloudConfig = (config) => writeJson(CLOUD_CONFIG_KEY, config);
 export const getEnterprisePayload = () => ({
   ...getClientConfig(),
   ...getLicenseConfig(),
-  ...getCloudConfig(),
 });
