@@ -83,6 +83,8 @@ const DEVOPS_FIELD_SX = {
   '& .MuiFormHelperText-root': { fontSize: 12 },
 };
 
+const readinessRequiresAttention = (preflight) => preflight?.enforcement_enabled && preflight?.ready === false;
+
 /* -------------------- Small utils -------------------- */
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
@@ -645,6 +647,11 @@ function PipelineForm() {
   const [successMessageOpen, setSuccessMessageOpen] = useState(false);
   const [errorMessageOpen, setErrorMessageOpen] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState('');
+  const [devopsPreflight, setDevopsPreflight] = useState(null);
+  const [testPreflight, setTestPreflight] = useState(null);
+  const [prodSourcePreflight, setProdSourcePreflight] = useState(null);
+  const [prodTargetPreflight, setProdTargetPreflight] = useState(null);
+  const [preflightLoading, setPreflightLoading] = useState({});
 
   const [waveId, setWaveId] = useState('');
   const [lastExecutionId, setLastExecutionId] = useState('');
@@ -711,6 +718,48 @@ function PipelineForm() {
     };
     loadEnvironmentCatalog();
   }, []);
+
+  const fetchEnvironmentPreflight = async (key, targetEnv, projectName, pipelineKind, setter) => {
+    if (!targetEnv) return;
+    setPreflightLoading((current) => ({ ...current, [key]: true }));
+    try {
+      const query = new URLSearchParams({
+        project_name: projectName || 'application',
+        pipeline_kind: pipelineKind,
+      }).toString();
+      const data = await callBackend(`/environment-catalog/preflight/${targetEnv}?${query}`, 'GET');
+      setter(data);
+    } catch (error) {
+      setter({
+        ready: false,
+        status: 'not_ready',
+        enforcement_enabled: true,
+        checks: [{
+          name: 'Environment readiness',
+          status: 'FAIL',
+          message: error.message || 'Unable to validate this environment.',
+        }],
+      });
+    } finally {
+      setPreflightLoading((current) => ({ ...current, [key]: false }));
+    }
+  };
+
+  useEffect(() => {
+    fetchEnvironmentPreflight('devops', devopsForm.target_env, devopsForm.project_name, 'DEVOPS', setDevopsPreflight);
+  }, [devopsForm.target_env, devopsForm.project_name]);
+
+  useEffect(() => {
+    fetchEnvironmentPreflight('test', testDevopsForm.target_env, testDevopsForm.project_name, 'TEST_DEVOPS', setTestPreflight);
+  }, [testDevopsForm.target_env, testDevopsForm.project_name]);
+
+  useEffect(() => {
+    fetchEnvironmentPreflight('prodSource', prodDevopsForm.source_env, prodDevopsForm.project_name, 'PROD_DEVOPS_SOURCE', setProdSourcePreflight);
+  }, [prodDevopsForm.source_env, prodDevopsForm.project_name]);
+
+  useEffect(() => {
+    fetchEnvironmentPreflight('prodTarget', prodDevopsForm.target_env, prodDevopsForm.project_name, 'PROD_DEVOPS', setProdTargetPreflight);
+  }, [prodDevopsForm.target_env, prodDevopsForm.project_name]);
 
   useEffect(() => {
     if (devopsTargetEnvs.length && !devopsTargetEnvs.includes(devopsForm.target_env)) {
@@ -1447,6 +1496,30 @@ function PipelineForm() {
   const isMultiCloud = formData.service === 'Multi-Cloud Deployment Manager';
   const isCloudMigration = formData.service === 'Cloud Migration';
 
+  const renderEnvironmentReady = (preflight, loading) => {
+    if (loading) {
+      return <Alert severity="info" sx={{ mt: 1 }}>Checking environment readiness...</Alert>;
+    }
+    if (!preflight) return null;
+    const failures = (preflight.checks || []).filter((check) => check.status === 'FAIL');
+    const warnings = (preflight.checks || []).filter((check) => check.status === 'WARN');
+    const severity = preflight.ready ? (warnings.length ? 'warning' : 'success') : 'error';
+    const label = preflight.ready ? 'Environment Ready' : 'Environment Not Ready';
+    const detail = failures[0]?.message || warnings[0]?.message || `Namespace ${preflight.namespace || 'will be resolved'} is validated for ${preflight.target_env}.`;
+    return (
+      <Alert severity={severity} sx={{ mt: 1 }}>
+        <Stack spacing={0.5}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>{label}</Typography>
+            <Chip size="small" label={preflight.status || 'unknown'} />
+            {preflight.eks_access_mode && <Chip size="small" variant="outlined" label={preflight.eks_access_mode} />}
+          </Stack>
+          <Typography variant="caption">{detail}</Typography>
+        </Stack>
+      </Alert>
+    );
+  };
+
   return (
     <Container maxWidth="lg" style={{ marginTop: 20, marginBottom: 60 }}>
       <Typography variant="h4" gutterBottom>
@@ -1608,6 +1681,7 @@ function PipelineForm() {
                     </Select>
                     <FormHelperText>Infrastructure details are resolved from the Environment Catalog.</FormHelperText>
                   </FormControl>
+                  {renderEnvironmentReady(devopsPreflight, preflightLoading.devops)}
                 </Grid>
               </Grid>
             </Card>
@@ -1639,7 +1713,7 @@ function PipelineForm() {
               </Grid>
             </Card>
 
-            <Button variant="contained" color="primary" type="submit" disabled={formDisabled} sx={{ display: 'block', mx: 'auto', mt: 4, borderRadius: 0, minWidth: 220 }}>
+            <Button variant="contained" color="primary" type="submit" disabled={formDisabled || readinessRequiresAttention(devopsPreflight)} sx={{ display: 'block', mx: 'auto', mt: 4, borderRadius: 0, minWidth: 220 }}>
               CREATE PIPELINE
             </Button>
           </Box>
@@ -1818,6 +1892,7 @@ function PipelineForm() {
                     </Select>
                     <FormHelperText>Execution settings are resolved from the Environment Catalog.</FormHelperText>
                   </FormControl>
+                  {renderEnvironmentReady(testPreflight, preflightLoading.test)}
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <TextField type="email" fullWidth label="Requester Notification Email" size="small" sx={DEVOPS_FIELD_SX}
@@ -1835,7 +1910,7 @@ function PipelineForm() {
               </Grid>
             </Card>
 
-            <Button variant="contained" color="primary" type="submit" disabled={formDisabled} sx={{ display: 'block', mx: 'auto', mt: 4, borderRadius: 0, minWidth: 220 }}>
+            <Button variant="contained" color="primary" type="submit" disabled={formDisabled || readinessRequiresAttention(testPreflight)} sx={{ display: 'block', mx: 'auto', mt: 4, borderRadius: 0, minWidth: 220 }}>
               CREATE TEST PIPELINE
             </Button>
           </Box>
@@ -1887,6 +1962,7 @@ function PipelineForm() {
                       {prodSourceEnvs.map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
                     </Select>
                   </FormControl>
+                  {renderEnvironmentReady(prodSourcePreflight, preflightLoading.prodSource)}
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
@@ -1895,6 +1971,7 @@ function PipelineForm() {
                       {prodTargetEnvs.map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
                     </Select>
                   </FormControl>
+                  {renderEnvironmentReady(prodTargetPreflight, preflightLoading.prodTarget)}
                 </Grid>
                 <Grid item xs={12}>
                   <FormHelperText>Artifact bucket, ECR registry, roles, cluster, namespace, and account mapping are resolved from the Environment Catalog.</FormHelperText>
@@ -1938,7 +2015,7 @@ function PipelineForm() {
               </Grid>
             </Card>
 
-            <Button variant="contained" color="primary" type="submit" disabled={formDisabled} sx={{ display: 'block', mx: 'auto', mt: 4, borderRadius: 0, minWidth: 220 }}>
+            <Button variant="contained" color="primary" type="submit" disabled={formDisabled || readinessRequiresAttention(prodSourcePreflight) || readinessRequiresAttention(prodTargetPreflight)} sx={{ display: 'block', mx: 'auto', mt: 4, borderRadius: 0, minWidth: 220 }}>
               PROMOTE TO PRODUCTION
             </Button>
           </Box>

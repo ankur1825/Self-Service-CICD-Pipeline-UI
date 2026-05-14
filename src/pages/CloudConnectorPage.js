@@ -21,6 +21,8 @@ const DEFAULT_ENVIRONMENTS = [
     cluster_name: '',
     namespace_strategy: 'auto',
     namespace_template: '{client_id}-{project_name}-{env}',
+    iam_validation_mode: 'validation-only',
+    eks_access_mode: 'namespace-scoped',
     sns_topic_arn: '',
     is_active: true,
   },
@@ -40,6 +42,8 @@ const DEFAULT_ENVIRONMENTS = [
     cluster_name: '',
     namespace_strategy: 'auto',
     namespace_template: '{client_id}-{project_name}-{env}',
+    iam_validation_mode: 'validation-only',
+    eks_access_mode: 'namespace-scoped',
     sns_topic_arn: '',
     is_active: true,
   },
@@ -59,6 +63,8 @@ const DEFAULT_ENVIRONMENTS = [
     cluster_name: '',
     namespace_strategy: 'auto',
     namespace_template: '{client_id}-{project_name}-{env}',
+    iam_validation_mode: 'validation-only',
+    eks_access_mode: 'namespace-scoped',
     sns_topic_arn: '',
     is_active: true,
   },
@@ -78,6 +84,8 @@ const DEFAULT_ENVIRONMENTS = [
     cluster_name: '',
     namespace_strategy: 'auto',
     namespace_template: '{client_id}-{project_name}-{env}',
+    iam_validation_mode: 'validation-only',
+    eks_access_mode: 'namespace-scoped',
     sns_topic_arn: '',
     is_active: true,
   },
@@ -99,6 +107,8 @@ function CloudConnectorPage() {
   const [selectedName, setSelectedName] = useState('DEV');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [preflight, setPreflight] = useState(null);
+  const [preflightLoading, setPreflightLoading] = useState(false);
 
   const selected = useMemo(
     () => environments.find((environment) => environment.name === selectedName) || environments[0] || DEFAULT_ENVIRONMENTS[0],
@@ -159,6 +169,27 @@ function CloudConnectorPage() {
     return checks.filter(([field]) => !(selected[field] || '').toString().trim()).map(([, label]) => label);
   };
 
+  const runPreflight = async () => {
+    setError('');
+    setPreflightLoading(true);
+    try {
+      const query = new URLSearchParams({
+        project_name: 'sample-application',
+        pipeline_kind: selected.name === 'PROD' ? 'PROD_DEVOPS' : 'DEVOPS',
+      }).toString();
+      const result = await callBackend(`/environment-catalog/preflight/${selected.name}?${query}`, 'GET');
+      setPreflight(result);
+    } catch (preflightError) {
+      setPreflight({
+        ready: false,
+        status: 'not_ready',
+        checks: [{ name: 'Environment readiness', status: 'FAIL', message: preflightError.message || 'Unable to validate environment.' }],
+      });
+    } finally {
+      setPreflightLoading(false);
+    }
+  };
+
   const handleSave = async () => {
     setError('');
     setMessage('');
@@ -177,6 +208,7 @@ function CloudConnectorPage() {
       const result = await callBackend('/environment-catalog', 'POST', { environments: [payload] });
       setEnvironments(mergeWithDefaults(result.environments || environments));
       setMessage(`${selected.name} environment saved. Pipeline forms now resolve infrastructure from the backend catalog.`);
+      setPreflight(null);
     } catch (saveError) {
       setError(saveError.message || 'Unable to save Environment Catalog.');
     }
@@ -255,12 +287,44 @@ function CloudConnectorPage() {
           <Grid item xs={12} md={6}>
             <TextField label="Namespace Template" value={selected.namespace_template || ''} onChange={(e) => updateSelected('namespace_template', e.target.value)} fullWidth required />
           </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel>IAM Mode</InputLabel>
+              <Select label="IAM Mode" value={selected.iam_validation_mode || 'validation-only'} onChange={(e) => updateSelected('iam_validation_mode', e.target.value)}>
+                <MenuItem value="validation-only">Validation only</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel>EKS Access Mode</InputLabel>
+              <Select label="EKS Access Mode" value={selected.eks_access_mode || 'namespace-scoped'} onChange={(e) => updateSelected('eks_access_mode', e.target.value)}>
+                <MenuItem value="namespace-scoped">Namespace scoped</MenuItem>
+                <MenuItem value="cluster-admin">Cluster scoped</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
         </Grid>
       </Card>
 
       <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
         <Button variant="contained" onClick={handleSave}>Save Environment</Button>
+        <Button variant="outlined" onClick={runPreflight} disabled={preflightLoading}>
+          {preflightLoading ? 'Validating...' : 'Validate Environment'}
+        </Button>
       </Stack>
+      {preflight && (
+        <Alert severity={preflight.ready ? (preflight.status === 'ready_with_warnings' ? 'warning' : 'success') : 'error'} sx={{ mt: 2 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            {preflight.ready ? 'Environment Ready' : 'Environment Not Ready'}
+          </Typography>
+          <Typography variant="caption">
+            {preflight.checks?.find((check) => check.status === 'FAIL')?.message
+              || preflight.checks?.find((check) => check.status === 'WARN')?.message
+              || `Namespace ${preflight.namespace || 'resolved by catalog'} is ready for pipeline execution.`}
+          </Typography>
+        </Alert>
+      )}
     </Container>
   );
 }
