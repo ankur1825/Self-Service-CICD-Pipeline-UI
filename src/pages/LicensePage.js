@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Container, Divider, Grid,
-  Stack, Typography,
+  Stack, TextField, Typography,
 } from '@mui/material';
 import { callBackend } from '../services/api';
 
@@ -49,6 +49,14 @@ function LicensePage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [requestingUpgrade, setRequestingUpgrade] = useState(false);
+  const [upgradeForm, setUpgradeForm] = useState({
+    requested_plan_code: 'enterprise-annual',
+    requested_user_count: '25',
+    requested_repo_count: '20',
+    requester_email: '',
+    message: 'Ready to convert from trial to enterprise.',
+  });
 
   const daysRemaining = useMemo(() => {
     if (!status?.expires_at) return null;
@@ -92,8 +100,40 @@ function LicensePage() {
     }
   };
 
+  const handleUpgradeField = (field) => (event) => {
+    setUpgradeForm((current) => ({ ...current, [field]: event.target.value }));
+  };
+
+  const handleUpgradeRequest = async () => {
+    setRequestingUpgrade(true);
+    setMessage('');
+    try {
+      const result = await callBackend('/license/upgrade-request', 'POST', {
+        requested_plan_code: upgradeForm.requested_plan_code,
+        requested_license_type: 'enterprise',
+        requested_environments: status?.allowed_environments || [],
+        requested_features: status?.enabled_features || [],
+        requested_user_count: Number(upgradeForm.requested_user_count || 0),
+        requested_repo_count: Number(upgradeForm.requested_repo_count || 0),
+        requester_email: upgradeForm.requester_email,
+        message: upgradeForm.message,
+        metadata: {
+          submitted_from: 'client-license-page',
+          current_license_type: status?.license_type,
+          current_expires_at: status?.expires_at,
+        },
+      });
+      setMessage(result.message || 'Upgrade request submitted.');
+    } catch (error) {
+      setMessage(error.message || 'Upgrade request failed.');
+    } finally {
+      setRequestingUpgrade(false);
+    }
+  };
+
   const isActive = status?.status === 'active';
   const canSync = Boolean(status?.sync_available);
+  const canRequestUpgrade = Boolean(status?.upgrade_available);
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
@@ -174,6 +214,74 @@ function LicensePage() {
               <Alert severity="error">{status.error}</Alert>
             </Grid>
           )}
+
+          <Grid item xs={12}>
+            <Card sx={{ p: 2, borderRadius: 1 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Enterprise Upgrade</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Submit a commercial upgrade or renewal request to Horizon Relevance. Horizon will review the request, create an offer, and activate the subscription after acceptance.
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Plan Code"
+                    value={upgradeForm.requested_plan_code}
+                    onChange={handleUpgradeField('requested_plan_code')}
+                  />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                    label="Users"
+                    type="number"
+                    value={upgradeForm.requested_user_count}
+                    onChange={handleUpgradeField('requested_user_count')}
+                  />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                    label="Repositories"
+                    type="number"
+                    value={upgradeForm.requested_repo_count}
+                    onChange={handleUpgradeField('requested_repo_count')}
+                  />
+                </Grid>
+                <Grid item xs={12} md={5}>
+                  <TextField
+                    fullWidth
+                    label="Requester Email"
+                    value={upgradeForm.requester_email}
+                    onChange={handleUpgradeField('requester_email')}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    minRows={3}
+                    label="Message"
+                    value={upgradeForm.message}
+                    onChange={handleUpgradeField('message')}
+                  />
+                </Grid>
+              </Grid>
+              <Button
+                variant="contained"
+                sx={{ mt: 2 }}
+                onClick={handleUpgradeRequest}
+                disabled={requestingUpgrade || !canRequestUpgrade}
+              >
+                {requestingUpgrade ? 'Submitting...' : 'Request Enterprise Upgrade'}
+              </Button>
+              {!canRequestUpgrade && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Upgrade requests require online license sync or an explicit license upgrade endpoint.
+                </Typography>
+              )}
+            </Card>
+          </Grid>
         </Grid>
       )}
 
