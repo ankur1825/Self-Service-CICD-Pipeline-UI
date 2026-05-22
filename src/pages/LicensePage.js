@@ -132,8 +132,10 @@ function LicensePage() {
   };
 
   const isActive = status?.status === 'active';
+  const isGrace = status?.status === 'grace_period';
   const canSync = Boolean(status?.sync_available);
   const canRequestUpgrade = Boolean(status?.upgrade_available);
+  const licenseSeverity = isActive ? 'success' : (isGrace ? 'warning' : 'default');
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
@@ -143,7 +145,7 @@ function LicensePage() {
           <Typography variant="body2" color="text.secondary">Client-hosted entitlement status</Typography>
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Chip label={status?.status || 'loading'} color={isActive ? 'success' : 'default'} />
+          <Chip label={status?.status || 'loading'} color={licenseSeverity} />
           <Chip label={status?.license_mode || 'offline-file'} variant="outlined" />
           <Chip label={status?.validation_mode || 'unknown'} variant="outlined" />
           <Chip
@@ -160,6 +162,24 @@ function LicensePage() {
       {message && (
         <Alert severity={message.toLowerCase().includes('fail') || message.toLowerCase().includes('invalid') ? 'error' : 'success'} sx={{ mt: 2 }}>
           {message}
+        </Alert>
+      )}
+
+      {!loading && status?.warning && (
+        <Alert severity="warning" sx={{ mt: 2 }}>
+          {status.warning}
+        </Alert>
+      )}
+
+      {!loading && daysRemaining !== null && daysRemaining <= 14 && daysRemaining >= 0 && (
+        <Alert severity="warning" sx={{ mt: 2 }}>
+          License expires in {daysRemaining} day{daysRemaining === 1 ? '' : 's'}. Sync after Horizon activates renewal or submit an upgrade request before expiry.
+        </Alert>
+      )}
+
+      {!loading && daysRemaining !== null && daysRemaining < 0 && !isGrace && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          License is expired. Pipeline requests remain blocked until Horizon activates renewal and the client platform syncs a new entitlement.
         </Alert>
       )}
 
@@ -185,6 +205,9 @@ function LicensePage() {
                 <Detail label="Issued At" value={formatDateTime(status?.issued_at)} />
                 <Detail label="Expires At" value={formatDateTime(status?.expires_at)} />
                 <Detail label="Last Synced At" value={formatDateTime(status?.last_synced_at)} />
+                <Detail label="Grace Expires At" value={formatDateTime(status?.grace_expires_at)} />
+                <Detail label="Auto Sync" value={status?.auto_sync_enabled ? `Every ${status?.auto_sync_interval_seconds || 'configured'} seconds` : 'Disabled'} />
+                <Detail label="Cache Grace" value={status?.cache_grace_hours !== undefined ? `${status.cache_grace_hours} hours` : 'Not configured'} />
                 <Detail label="Usage Reporting" value={status?.usage_reporting_enabled ? 'Enabled' : 'Disabled'} />
                 <Detail label="Usage Endpoint" value={status?.usage_endpoint_configured ? 'Configured' : 'Not configured'} />
               </Stack>
