@@ -1,12 +1,23 @@
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/pipeline/api';
 
+function authHeaders() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user?.token ? { Authorization: `Bearer ${user.token}` } : {};
+  } catch (error) {
+    return {};
+  }
+}
+
 export async function apiRequest(path, options = {}) {
+  const { headers = {}, ...requestOptions } = options;
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...requestOptions,
     headers: {
       'Content-Type': 'application/json',
-      ...(options.headers || {}),
+      ...authHeaders(),
+      ...headers,
     },
-    ...options,
   });
 
   const contentType = response.headers.get('content-type') || '';
