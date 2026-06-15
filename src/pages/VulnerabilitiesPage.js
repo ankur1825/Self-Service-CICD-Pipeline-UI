@@ -27,6 +27,26 @@ const findingCategories = [
   'Security Finding',
 ];
 
+const enterpriseCsvHeaders = [
+  'Finding ID', 'Category', 'Target', 'Affected Component', 'Installed Version',
+  'Reference', 'Severity', 'Recommended Fix', 'Risk Score', 'Line', 'Status',
+  'Policy Bundle', 'Policy Version', 'Policy Ref', 'Policy Decision',
+  'Waiver Status', 'Waiver Expiry', 'Evidence URI', 'Detected At',
+  'Jenkins Job', 'Build Number', 'Description'
+];
+
+const csvCell = (value) => {
+  const text = value === null || value === undefined ? '' : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+const newestTimestamp = (findings) => {
+  return findings.reduce((latest, finding) => {
+    const current = Date.parse(finding.timestamp || '') || 0;
+    return Math.max(latest, current);
+  }, 0);
+};
+
 function VulnerabilitiesDashboard() {
   const [vulnerabilities, setVulnerabilities] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -38,14 +58,25 @@ function VulnerabilitiesDashboard() {
   const user = JSON.parse(localStorage.getItem("user"));
   const userEmail = user?.email;
 
-  // 🛠️ Safely fetch applications
   useEffect(() => {
     if (userEmail) {
       callBackend(`/my_applications?email=${userEmail}`)
-        .then((apps) => {
+        .then(async (apps) => {
           if (Array.isArray(apps)) {
             setApplications(apps);
-            if (apps.length > 0) setSelectedApp(apps[0]);
+            if (apps.length > 0) {
+              const appFindings = await Promise.all(
+                apps.map((app) =>
+                  callBackend(`/security/findings?email=${userEmail}&application=${encodeURIComponent(app)}`)
+                    .then((data) => ({ app, findings: Array.isArray(data) ? data : [] }))
+                    .catch(() => ({ app, findings: [] }))
+                )
+              );
+              const bestApp = appFindings
+                .filter((item) => item.findings.length > 0)
+                .sort((a, b) => newestTimestamp(b.findings) - newestTimestamp(a.findings))[0]?.app;
+              setSelectedApp((current) => current || bestApp || apps[0]);
+            }
           } else {
             console.warn("Expected array, received:", apps);
             setApplications([]);
@@ -79,6 +110,10 @@ function VulnerabilitiesDashboard() {
       vuln.affected_component?.toLowerCase().includes(searchText.toLowerCase()) ||
       vuln.vulnerability_id?.toLowerCase().includes(searchText.toLowerCase()) ||
       vuln.category?.toLowerCase().includes(searchText.toLowerCase()) ||
+      vuln.policy_bundle?.toLowerCase().includes(searchText.toLowerCase()) ||
+      vuln.policy_ref?.toLowerCase().includes(searchText.toLowerCase()) ||
+      vuln.policy_decision?.toLowerCase().includes(searchText.toLowerCase()) ||
+      vuln.waiver_status?.toLowerCase().includes(searchText.toLowerCase()) ||
       vuln.remediation?.toLowerCase().includes(searchText.toLowerCase()) ||
       vuln.description?.toLowerCase().includes(searchText.toLowerCase());
 
@@ -93,7 +128,7 @@ function VulnerabilitiesDashboard() {
 
   const exportCSV = () => {
     const csvRows = [
-      ['Finding ID', 'Category', 'Target', 'Affected Component', 'Installed Version', 'Reference', 'Severity', 'Recommended Fix', 'Risk Score', 'Line', 'Status', 'Detected At', 'Jenkins Job', 'Build Number', 'Description'],
+      enterpriseCsvHeaders,
       ...filteredVulnerabilities.map(vuln => [
         vuln.finding_id,
         vuln.category,
@@ -106,13 +141,20 @@ function VulnerabilitiesDashboard() {
         vuln.risk_score,
         vuln.line || '',
         vuln.status || '',
+        vuln.policy_bundle || '',
+        vuln.policy_version || '',
+        vuln.policy_ref || '',
+        vuln.policy_decision || '',
+        vuln.waiver_status || '',
+        vuln.waiver_expiry || '',
+        vuln.evidence_uri || '',
         vuln.timestamp || '',
         vuln.jenkins_job || '',
         vuln.build_number || '',
         vuln.description || ''
       ])
     ];
-    const csvContent = csvRows.map(e => e.join(",")).join("\n");
+    const csvContent = csvRows.map((row) => row.map(csvCell).join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     saveAs(blob, 'vulnerabilities.csv');
   };
@@ -146,6 +188,27 @@ function VulnerabilitiesDashboard() {
     },
     { field: 'line', headerName: 'Line', width: 90 },
     { field: 'status', headerName: 'Status', width: 110 },
+    { field: 'policy_bundle', headerName: 'Policy Bundle', width: 230 },
+    { field: 'policy_version', headerName: 'Policy Version', width: 130 },
+    { field: 'policy_ref', headerName: 'Policy Ref', width: 260 },
+    {
+      field: 'policy_decision',
+      headerName: 'Policy Decision',
+      width: 150,
+      renderCell: (params) => (
+        params.value ? <Chip label={params.value} color={params.value === 'deny' ? 'warning' : 'info'} size="small" /> : 'N/A'
+      )
+    },
+    {
+      field: 'waiver_status',
+      headerName: 'Waiver',
+      width: 130,
+      renderCell: (params) => (
+        params.value ? <Chip label={params.value} color={params.value === 'active' ? 'success' : 'default'} size="small" /> : 'N/A'
+      )
+    },
+    { field: 'waiver_expiry', headerName: 'Waiver Expires', width: 160 },
+    { field: 'evidence_uri', headerName: 'Evidence URI', width: 260 },
     {
       field: 'timestamp',
       headerName: 'Detected At',
@@ -153,6 +216,8 @@ function VulnerabilitiesDashboard() {
       renderCell: (params) => params.value ? new Date(params.value).toLocaleString() : 'N/A'
     },
     { field: 'description', headerName: 'Evidence', width: 360 },
+    { field: 'jenkins_job', headerName: 'Jenkins Job', width: 210 },
+    { field: 'build_number', headerName: 'Build #', width: 100 },
     {
       field: 'jenkins_url',
       headerName: 'Build Trace',
@@ -250,7 +315,7 @@ function VulnerabilitiesDashboard() {
           overflow: 'auto'
         }}
       >
-        <Box sx={{ minWidth: '1600px', p: isFullscreen ? 2 : 0 }}>
+        <Box sx={{ minWidth: '2600px', p: isFullscreen ? 2 : 0 }}>
           <DataGrid
             rows={filteredVulnerabilities.map((row, index) => ({ id: index, ...row }))}
             columns={columns}
