@@ -21,7 +21,7 @@ ingress:
   enabled: true
   className: nginx
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/rewrite-target: /pipeline/$2
     nginx.ingress.kubernetes.io/use-regex: "true"
   hosts:
     - host: cloud-migration-dev.horizonrelevance.com
@@ -36,7 +36,7 @@ backendAlias:
 
 resources:
   requests:
-    cpu: 50m
+    cpu: 5m
     memory: 64Mi
   limits:
     cpu: 200m
