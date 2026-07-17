@@ -1,13 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { TextField, Button, Typography, Container } from '@mui/material';
 import { callBackend } from '../services/api';
 
 function Login() {
     const [form, setForm] = useState({ username: '', password: '' });
     const [error, setError] = useState('');
-    const navigate = useNavigate();
-
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };

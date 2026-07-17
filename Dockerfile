@@ -1,11 +1,23 @@
-FROM nginx:1.29-alpine
+# syntax=docker/dockerfile:1.7
+FROM node:20-alpine AS builder
+
+ENV CI=true
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY public ./public
+COPY src ./src
+RUN npm run build
+
+FROM nginxinc/nginx-unprivileged:1.29-alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY build /usr/share/nginx/html
+COPY --from=builder /app/build /usr/share/nginx/html/pipeline
 
-EXPOSE 80
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1/pipeline/ >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

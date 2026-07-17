@@ -3,9 +3,9 @@
 .containerignore
 .env
 .env.*
+.local
 node_modules
-src
-public
+build
 horizon-self-service-cicd-pipeline-ui-dashboard
 *.log
 *.map

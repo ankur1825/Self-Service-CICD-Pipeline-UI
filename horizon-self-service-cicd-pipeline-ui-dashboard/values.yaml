@@ -1,4 +1,5 @@
 namespaceOverride: horizon-relevance-dev
+fullnameOverride: ""
 
 replicaCount: 1
 
@@ -12,10 +13,46 @@ imagePullSecrets: []
 service:
   type: ClusterIP
   port: 80
+  targetPort: 8080
 
 serviceAccount:
   create: false
-  name: ""  
+  name: ""
+  automount: false
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101
+  runAsGroup: 101
+  fsGroup: 101
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+probes:
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 10
+    periodSeconds: 20
+  readiness:
+    path: /healthz
+    initialDelaySeconds: 3
+    periodSeconds: 10
 
 ingress:
   enabled: true
