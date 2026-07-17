@@ -24,7 +24,7 @@ export async function apiRequest(path, options = {}) {
   const body = contentType.includes('application/json') ? await response.json() : await response.text();
 
   if (!response.ok) {
-    const message = typeof body === 'string' ? body : body?.error || body?.message || response.statusText;
+    const message = typeof body === 'string' ? body : body?.detail || body?.error || body?.message || response.statusText;
     const error = new Error(message);
     error.body = body;
     error.status = response.status;

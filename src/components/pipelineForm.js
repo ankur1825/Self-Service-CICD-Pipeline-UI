@@ -463,6 +463,15 @@ function PipelineForm() {
   const user = JSON.parse(localStorage.getItem('user'));
   const savedCloudConfig = getCloudConfig();
 
+  const handleServiceChange = (event) => {
+    const service = event.target.value;
+    if (service === 'Cloud Migration') {
+      navigate('/cloud-migration');
+      return;
+    }
+    setFormData((current) => ({ ...current, service }));
+  };
+
   const [environmentCatalog, setEnvironmentCatalog] = useState([]);
   const [formData, setFormData] = useState({
     // generic
@@ -1556,7 +1565,7 @@ function PipelineForm() {
         {/* Service selector */}
         <FormControl fullWidth sx={{ mb: 2 }}>
           <InputLabel>Service</InputLabel>
-          <Select name="service" value={formData.service} onChange={(e) => setFormData(s => ({ ...s, service: e.target.value }))} required>
+          <Select name="service" value={formData.service} onChange={handleServiceChange} required>
             {SERVICE_OPTIONS.map((option) => (
               option.type === 'header'
                 ? <ListSubheader key={option.label}>{option.label}</ListSubheader>

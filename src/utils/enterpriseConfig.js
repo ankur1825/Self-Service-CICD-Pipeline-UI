@@ -26,7 +26,7 @@ export const defaultLicenseConfig = {
   license_signature: '',
   license_type: 'trial',
   license_expires_at: '',
-  enabled_pipelines: ['Devops Pipeline', 'Test Devops Pipeline', 'Prod Devops Pipeline'],
+  enabled_pipelines: ['Devops Pipeline', 'Test Devops Pipeline', 'Prod Devops Pipeline', 'Cloud Migration Factory'],
   enabled_features: [
     'build',
     'artifact_publish',
@@ -38,6 +38,8 @@ export const defaultLicenseConfig = {
     'notifications',
     'secret_management',
     'prod_deploy',
+    'cloud_migration',
+    'cloud_migration_aws',
   ],
   allowed_environments: ['DEV', 'QA', 'STAGE', 'EKS-NONPROD', 'EKS-PROD'],
   license_mode: 'offline-file',
