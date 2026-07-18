@@ -11,10 +11,12 @@ import {
   createMigrationWave,
   getCloudMigrationCapabilities,
   getMigrationCompatibility,
+  getMigrationExecutionHealth,
   getMigrationProject,
   getMigrationProjects,
   planMigrationWave,
 } from './api';
+import WaveExecutionPanel from './WaveExecutionPanel';
 
 const PROJECT_INITIAL = {
   name: '',
@@ -53,6 +55,7 @@ function CloudMigrationPage() {
   const canAuthor = canAuthorCloudMigration(user);
   const canApprove = canApproveCloudMigration(user);
   const [capabilities, setCapabilities] = useState(null);
+  const [executionHealth, setExecutionHealth] = useState(null);
   const [projects, setProjects] = useState([]);
   const [environments, setEnvironments] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -116,6 +119,11 @@ function CloudMigrationPage() {
       }));
 
       if (capabilityResult.licensed) {
+        try {
+          setExecutionHealth(await getMigrationExecutionHealth());
+        } catch (healthError) {
+          setExecutionHealth({ status: 'attention', detail: errorMessage(healthError, 'Worker health is unavailable.') });
+        }
         const projectResult = await getMigrationProjects();
         const nextProjects = projectResult?.projects || [];
         setProjects(nextProjects);
@@ -216,6 +224,10 @@ function CloudMigrationPage() {
     }
   };
 
+  const refreshSelectedProject = useCallback(async () => {
+    if (selectedProjectId) await loadProject(selectedProjectId);
+  }, [loadProject, selectedProjectId]);
+
   if (loading) {
     return <Stack alignItems="center" sx={{ py: 10 }}><CircularProgress /></Stack>;
   }
@@ -231,6 +243,10 @@ function CloudMigrationPage() {
           <Chip label="AWS first" color="primary" />
           <Chip label={capabilities?.data_boundary || 'client-hosted'} variant="outlined" />
           <Chip label={licensed ? 'Licensed' : 'Not licensed'} color={licensed ? 'success' : 'error'} />
+          <Chip
+            label={aws?.execution_worker?.mock ? 'MOCK execution' : 'AWS execution'}
+            color={aws?.execution_worker?.mock ? 'warning' : 'error'}
+          />
           <Chip label={aws?.execution_enabled ? 'Execution enabled' : 'Execution locked'} color={aws?.execution_enabled ? 'warning' : 'default'} />
         </Stack>
       </Stack>
@@ -238,6 +254,17 @@ function CloudMigrationPage() {
       <Alert severity="info" sx={{ mt: 2 }}>
         Inventory, AWS credentials, plans, logs, approvals, and execution remain inside the client domain. The product license grants capability; it does not transfer migration data to the vendor.
       </Alert>
+      {aws?.execution_worker?.mock && (
+        <Alert severity="warning" variant="filled" sx={{ mt: 2 }}>
+          DEVELOPMENT SIMULATION: the worker exercises plans, separation of duties, lifecycle reconciliation, rollback, and evidence without making any AWS, MGN, EC2, IAM, or network change.
+        </Alert>
+      )}
+      {licensed && executionHealth && (
+        <Alert severity={executionHealth.status === 'healthy' ? 'success' : 'warning'} sx={{ mt: 2 }}>
+          Worker {executionHealth.status}: mode {executionHealth.execution_mode || 'unknown'}, {executionHealth.live_worker_count || 0} live worker(s), {executionHealth.active_job_count || 0} active job(s), {executionHealth.expired_lease_count || 0} expired lease(s).
+          {executionHealth.detail ? ` ${executionHealth.detail}` : ''}
+        </Alert>
+      )}
       {!licensed && (
         <Alert severity="error" sx={{ mt: 2 }}>
           {capabilities?.license_reason || 'Cloud Migration Factory and AWS migration entitlements are required.'}
@@ -411,6 +438,13 @@ function CloudMigrationPage() {
                     )}
                   </Stack>
                   {wave.approved_by && <Typography variant="caption" color="text.secondary">Approved by {wave.approved_by}</Typography>}
+                  {wave.approved_by && aws?.execution_worker?.configured && (
+                    <WaveExecutionPanel
+                      wave={wave}
+                      executionMode={aws.execution_worker.mode}
+                      onWaveChanged={refreshSelectedProject}
+                    />
+                  )}
                 </Card>
               ))}
             </Stack>

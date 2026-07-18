@@ -18,3 +18,17 @@ export const approveMigrationWave = (waveId, expectedVersion, comment = '') => c
   expected_version: expectedVersion,
   comment,
 });
+export const getMigrationExecutionHealth = () => callBackend('/cloud-migration/execution/health');
+export const getMigrationExecutionJobs = (waveId) => callBackend(`/cloud-migration/waves/${waveId}/jobs`);
+export const requestMigrationExecution = (waveId, action, payload, idempotencyKey) => callBackend(
+  `/cloud-migration/waves/${waveId}/jobs/${action}`,
+  'POST',
+  payload,
+  { 'Idempotency-Key': idempotencyKey },
+);
+export const approveMigrationExecution = (jobId, expectedVersion, confirmation, comment = '') => callBackend(
+  `/cloud-migration/jobs/${jobId}/approve`,
+  'POST',
+  { expected_version: expectedVersion, confirmation, comment },
+);
+export const getMigrationEvidence = (evidenceId) => callBackend(`/cloud-migration/evidence/${evidenceId}`);

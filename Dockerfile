@@ -10,6 +10,7 @@ COPY public ./public
 COPY src ./src
 ENV GENERATE_SOURCEMAP=false \
     NODE_OPTIONS=--max-old-space-size=1024
+RUN npm test -- --watchAll=false --runInBand
 RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
