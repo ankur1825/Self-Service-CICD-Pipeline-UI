@@ -10,6 +10,7 @@ import {
   createMigrationProject,
   createMigrationWave,
   getCloudMigrationCapabilities,
+  getMigrationCompatibility,
   getMigrationProject,
   getMigrationProjects,
   planMigrationWave,
@@ -56,6 +57,8 @@ function CloudMigrationPage() {
   const [environments, setEnvironments] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [selectedProject, setSelectedProject] = useState(null);
+  const [compatibility, setCompatibility] = useState(null);
+  const [compatibilityLoading, setCompatibilityLoading] = useState(false);
   const [projectForm, setProjectForm] = useState(PROJECT_INITIAL);
   const [waveForm, setWaveForm] = useState(WAVE_INITIAL);
   const [loading, setLoading] = useState(true);
@@ -69,10 +72,32 @@ function CloudMigrationPage() {
   const loadProject = useCallback(async (projectId) => {
     if (!projectId) {
       setSelectedProject(null);
+      setCompatibility(null);
       return;
     }
-    const project = await getMigrationProject(projectId);
-    setSelectedProject(project);
+    setCompatibilityLoading(true);
+    setCompatibility(null);
+    try {
+      const project = await getMigrationProject(projectId);
+      setSelectedProject(project);
+      const compatibilityResult = await getMigrationCompatibility(
+        project.source_type,
+        project.target_provider,
+        'rehost',
+      );
+      setCompatibility(compatibilityResult);
+      const availableMethods = (compatibilityResult.transfer_adapters || [])
+        .filter((adapter) => adapter.status === 'available')
+        .map((adapter) => adapter.key);
+      setWaveForm((current) => ({
+        ...current,
+        migration_method: availableMethods.includes(current.migration_method)
+          ? current.migration_method
+          : compatibilityResult.recommended_transfer_adapter || '',
+      }));
+    } finally {
+      setCompatibilityLoading(false);
+    }
   }, []);
 
   const load = useCallback(async () => {
@@ -132,7 +157,7 @@ function CloudMigrationPage() {
       const created = await createMigrationProject(projectForm);
       setProjects((current) => [created, ...current]);
       setSelectedProjectId(created.id);
-      setSelectedProject(created);
+      await loadProject(created.id);
       setProjectForm((current) => ({ ...PROJECT_INITIAL, target_environment: current.target_environment }));
       setMessage(`Project '${created.name}' created inside the licensed client tenant.`);
     } catch (createError) {
@@ -147,6 +172,11 @@ function CloudMigrationPage() {
     .map((source_ref) => source_ref.trim())
     .filter(Boolean)
     .map((source_ref) => ({ source_ref })), [waveForm.workload_refs]);
+
+  const transferAdapters = compatibility?.transfer_adapters || [];
+  const selectedTransferAdapter = transferAdapters.find(
+    (adapter) => adapter.key === waveForm.migration_method,
+  );
 
   const handleCreateWave = async () => {
     setBusy('wave');
@@ -195,7 +225,7 @@ function CloudMigrationPage() {
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>Cloud Migration Factory</Typography>
-          <Typography color="text.secondary">AWS rehost / lift-and-shift enterprise control plane</Typography>
+          <Typography color="text.secondary">Provider-neutral migration control plane · AWS target enabled first</Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
           <Chip label="AWS first" color="primary" />
@@ -231,8 +261,13 @@ function CloudMigrationPage() {
                 <FormControl fullWidth disabled={!licensed || !canAuthor}>
                   <InputLabel>Source</InputLabel>
                   <Select label="Source" value={projectForm.source_type} onChange={updateProject('source_type')}>
-                    <MenuItem value="aws-ec2">AWS EC2 (account or Region)</MenuItem>
-                    <MenuItem value="external">On-premises or other cloud</MenuItem>
+                    <MenuItem value="onprem-vmware">On-premises VMware virtual machine</MenuItem>
+                    <MenuItem value="onprem-physical">On-premises physical server</MenuItem>
+                    <MenuItem value="aws-ec2">AWS EC2 instance</MenuItem>
+                    <MenuItem value="azure-vm">Microsoft Azure virtual machine</MenuItem>
+                    <MenuItem value="gcp-vm">Google Compute Engine virtual machine</MenuItem>
+                    <MenuItem value="oci-compute">Oracle Cloud compute instance</MenuItem>
+                    <MenuItem value="external">External / legacy source</MenuItem>
                   </Select>
                 </FormControl>
                 <FormControl fullWidth disabled={!licensed || !canAuthor}>
@@ -295,14 +330,32 @@ function CloudMigrationPage() {
               {canAuthor && (
                 <Card sx={{ p: 2 }}>
                   <Typography variant="h6">Add migration wave</Typography>
+                  {compatibilityLoading && (
+                    <Alert severity="info" sx={{ mt: 2 }}>Checking compatible client-hosted transfer methods…</Alert>
+                  )}
+                  {!compatibilityLoading && compatibility && (
+                    <Alert severity={compatibility.supported ? 'success' : 'error'} sx={{ mt: 2 }}>
+                      {compatibility.supported
+                        ? `Compatible path found. Recommended method: ${compatibility.recommended_transfer_adapter}. Execution remains locked.`
+                        : (compatibility.reasons || []).join(' ')}
+                    </Alert>
+                  )}
                   <Grid container spacing={2} sx={{ mt: 0 }}>
                     <Grid item xs={12} md={6}><TextField label="Wave name" value={waveForm.name} onChange={updateWave('name')} fullWidth required /></Grid>
                     <Grid item xs={12} md={6}>
-                      <FormControl fullWidth>
+                      <FormControl fullWidth disabled={compatibilityLoading || !compatibility?.supported}>
                         <InputLabel>Migration method</InputLabel>
-                        <Select label="Migration method" value={waveForm.migration_method} onChange={updateWave('migration_method')}>
-                          <MenuItem value="mgn">AWS MGN continuous replication</MenuItem>
-                          <MenuItem value="ami-copy">AMI / snapshot copy</MenuItem>
+                        <Select
+                          label="Migration method"
+                          value={compatibility ? waveForm.migration_method : ''}
+                          onChange={updateWave('migration_method')}
+                        >
+                          {transferAdapters.map((adapter) => (
+                            <MenuItem key={adapter.key} value={adapter.key} disabled={adapter.status !== 'available'}>
+                              {adapter.display_name}
+                              {adapter.status !== 'available' ? ` — ${adapter.status.replaceAll('_', ' ')}` : ''}
+                            </MenuItem>
+                          ))}
                         </Select>
                       </FormControl>
                     </Grid>
@@ -311,7 +364,17 @@ function CloudMigrationPage() {
                     <Grid item xs={12}><TextField label="Maintenance / cutover window" value={waveForm.maintenance_window} onChange={updateWave('maintenance_window')} fullWidth /></Grid>
                     <Grid item xs={12}><TextField label="Source server or EC2 instance IDs" value={waveForm.workload_refs} onChange={updateWave('workload_refs')} fullWidth multiline minRows={3} helperText="One per line or comma-separated" required /></Grid>
                     <Grid item xs={12}>
-                      <Button variant="contained" disabled={busy === 'wave' || !waveForm.name || !workloads.length || (selectedProject.source_type === 'aws-ec2' && !waveForm.source_region)} onClick={handleCreateWave}>
+                      <Button
+                        variant="contained"
+                        disabled={
+                          busy === 'wave'
+                          || !waveForm.name
+                          || !workloads.length
+                          || selectedTransferAdapter?.status !== 'available'
+                          || (selectedProject.source_type === 'aws-ec2' && !waveForm.source_region)
+                        }
+                        onClick={handleCreateWave}
+                      >
                         Save wave
                       </Button>
                     </Grid>

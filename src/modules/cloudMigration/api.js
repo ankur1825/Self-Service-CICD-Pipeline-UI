@@ -1,6 +1,14 @@
 import { callBackend } from '../../services/api';
 
 export const getCloudMigrationCapabilities = () => callBackend('/cloud-migration/capabilities');
+export const getMigrationCompatibility = (sourceType, targetProvider = 'aws', strategy = 'rehost') => {
+  const query = new URLSearchParams({
+    source_type: sourceType,
+    target_provider: targetProvider,
+    strategy,
+  });
+  return callBackend(`/cloud-migration/compatibility?${query.toString()}`);
+};
 export const getMigrationProjects = () => callBackend('/cloud-migration/projects');
 export const createMigrationProject = (payload) => callBackend('/cloud-migration/projects', 'POST', payload);
 export const getMigrationProject = (projectId) => callBackend(`/cloud-migration/projects/${projectId}`);
