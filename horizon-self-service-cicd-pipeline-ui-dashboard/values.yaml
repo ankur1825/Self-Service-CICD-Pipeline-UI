@@ -3,6 +3,12 @@ fullnameOverride: ""
 
 replicaCount: 1
 
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 25%
+    maxUnavailable: 25%
+
 image:
   repository: 426946630837.dkr.ecr.us-east-1.amazonaws.com/horizon/frontend
   tag: "1.4.26"
