@@ -1,0 +1,49 @@
+namespaceOverride: horizon-cloud-migration-dev
+fullnameOverride: horizon-cloud-migration-ui
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+
+image:
+  repository: 426946630837.dkr.ecr.us-east-1.amazonaws.com/horizon/frontend
+  tag: REPLACE_WITH_UI_COMMIT_SHA
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: horizon-cloud-migration-ui
+  automount: false
+  annotations: {}
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /pipeline/$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+  hosts:
+    - host: cloud-migration-dev.horizonrelevance.com
+      paths:
+        - path: /pipeline(/|$)(.*)
+          pathType: ImplementationSpecific
+  redirect:
+    enabled: false
+
+backendAlias:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 5m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

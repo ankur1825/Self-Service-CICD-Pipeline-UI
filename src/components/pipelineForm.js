@@ -463,6 +463,15 @@ function PipelineForm() {
   const user = JSON.parse(localStorage.getItem('user'));
   const savedCloudConfig = getCloudConfig();
 
+  const handleServiceChange = (event) => {
+    const service = event.target.value;
+    if (service === 'Cloud Migration') {
+      navigate('/cloud-migration');
+      return;
+    }
+    setFormData((current) => ({ ...current, service }));
+  };
+
   const [environmentCatalog, setEnvironmentCatalog] = useState([]);
   const [formData, setFormData] = useState({
     // generic
@@ -662,26 +671,15 @@ function PipelineForm() {
   const [preflightLoading, setPreflightLoading] = useState({});
 
   const [waveId, setWaveId] = useState('');
-  const [lastExecutionId, setLastExecutionId] = useState('');
+  const [, setLastExecutionId] = useState('');
   const [errors, setErrors] = useState({});
 
   // Super-admin (POC): only show TEARDOWN to this user
   const isSuperAdmin = (user?.username === 'ankur.kashyap');
 
-  // TPM/sysOwner auto-map (unused today but kept)
-  const tpmMapping = {
-    'Commercial|COMM': {
-      tpmEmail: 'ankur.kashyap@horizonrelevance.com',
-      sysOwnerEmail: 'shaileja.sharma@horizonrelevance.com',
-    },
-    'GlobalDevelopment|GDS': {
-      tpmEmail: 'shaileja.sharma@horizonrelevance.com',
-      sysOwnerEmail: 'ankur.kashyap@horizonrelevance.com',
-    },
-  };
-
   /* -------------------- Hooks computed once (no conditional hooks) -------------------- */
   const targetCount = useMemo(() => parseCSV(formData.targetsText).length, [formData.targetsText]);
+  const primaryPlacementAccountRef = placements[0]?.account_ref || '';
   const devopsTargetEnvs = useMemo(() => {
     const catalogEnvs = environmentCatalog
       .filter((environment) => environment?.is_active !== false && ['DEV', 'QA', 'STAGE'].includes(environment.name))
@@ -809,7 +807,7 @@ function PipelineForm() {
 
     const fetchRegions = async () => {
       try {
-        const firstAcc = (placements?.[0]?.account_ref || '').trim();
+        const firstAcc = primaryPlacementAccountRef.trim();
         const qs = new URLSearchParams({
           tenant_id: TENANT_ID,
           include_opt_in: 'false',
@@ -822,7 +820,7 @@ function PipelineForm() {
       }
     };
     fetchRegions();
-  }, [formData.service, formData.mcTopServiceType, placements?.[0]?.account_ref]);
+  }, [formData.service, formData.mcTopServiceType, primaryPlacementAccountRef]);
 
   // Multi-Cloud: fetch instance types when region changes
   useEffect(() => {
@@ -835,7 +833,7 @@ function PipelineForm() {
 
     (async () => {
       try {
-        const accRef = placements?.[0]?.account_ref || '';
+        const accRef = primaryPlacementAccountRef;
         const qs = new URLSearchParams({
           region: formData.region,
           tenant_id: TENANT_ID,
@@ -847,7 +845,7 @@ function PipelineForm() {
         console.error('Failed to fetch instance types', e);
       }
     })();
-  }, [formData.service, formData.mcTopServiceType, formData.region, placements?.[0]?.account_ref, instanceTypesCache]);
+  }, [formData.service, formData.mcTopServiceType, formData.region, primaryPlacementAccountRef, instanceTypesCache]);
 
   /* -------------------- Placement helpers -------------------- */
   const updatePlacement = async (idx, field, value) => {
@@ -1556,7 +1554,7 @@ function PipelineForm() {
         {/* Service selector */}
         <FormControl fullWidth sx={{ mb: 2 }}>
           <InputLabel>Service</InputLabel>
-          <Select name="service" value={formData.service} onChange={(e) => setFormData(s => ({ ...s, service: e.target.value }))} required>
+          <Select name="service" value={formData.service} onChange={handleServiceChange} required>
             {SERVICE_OPTIONS.map((option) => (
               option.type === 'header'
                 ? <ListSubheader key={option.label}>{option.label}</ListSubheader>

@@ -1,7 +1,7 @@
 import './Navbar.css';
 import { useNavigate } from 'react-router-dom';
 import { Button, Stack } from '@mui/material';
-import { isPlatformAdmin } from '../utils/authz';
+import { canAccessCloudMigration, isPlatformAdmin } from '../utils/authz';
 
 function Navbar() {
     const navigate = useNavigate();
@@ -26,6 +26,7 @@ function Navbar() {
                         <Stack direction="row" spacing={0.5} className="nav-links">
                             <Button color="inherit" size="small" onClick={() => navigate('/')}>Pipelines</Button>
                             <Button color="inherit" size="small" onClick={() => navigate('/vulnerabilities')}>Findings</Button>
+                            {canAccessCloudMigration(user) && <Button color="inherit" size="small" onClick={() => navigate('/cloud-migration')}>Cloud Migration</Button>}
                             {isAdmin && <Button color="inherit" size="small" onClick={() => navigate('/client-settings')}>Client</Button>}
                             {isAdmin && <Button color="inherit" size="small" onClick={() => navigate('/environment-catalog')}>Environment Catalog</Button>}
                             {isAdmin && <Button color="inherit" size="small" onClick={() => navigate('/license')}>License</Button>}

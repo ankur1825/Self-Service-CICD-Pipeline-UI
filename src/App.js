@@ -6,6 +6,7 @@ import VulnerabilitiesPage from './pages/VulnerabilitiesPage';
 import LicensePage from './pages/LicensePage';
 import ClientSettingsPage from './pages/ClientSettingsPage';
 import CloudConnectorPage from './pages/CloudConnectorPage';
+import CloudMigrationPage from './modules/cloudMigration/CloudMigrationPage';
 import { isPlatformAdmin } from './utils/authz';
 
 const PrivateRoute = ({ children }) => {
@@ -29,6 +30,7 @@ function App() {
                 <Route path="/license" element={<PrivateRoute><AdminRoute><LicensePage /></AdminRoute></PrivateRoute>} />
                 <Route path="/client-settings" element={<PrivateRoute><AdminRoute><ClientSettingsPage /></AdminRoute></PrivateRoute>} />
                 <Route path="/environment-catalog" element={<PrivateRoute><AdminRoute><CloudConnectorPage /></AdminRoute></PrivateRoute>} />
+                <Route path="/cloud-migration" element={<PrivateRoute><CloudMigrationPage /></PrivateRoute>} />
                 <Route path="/cloud-connector" element={<Navigate to="/environment-catalog" replace />} />
             </Routes>
         </Router>

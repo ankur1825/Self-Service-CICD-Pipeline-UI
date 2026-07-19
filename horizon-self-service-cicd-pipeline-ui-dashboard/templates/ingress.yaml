@@ -2,7 +2,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Chart.Name }}
+  name: {{ include "horizon-self-service-cicd-pipeline-ui-dashboard.fullname" . }}
   namespace: {{ .Values.namespaceOverride }}
   labels:
     app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
@@ -15,6 +15,10 @@ spec:
   {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}
   {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   rules:
     {{- range .Values.ingress.hosts }}
     - host: {{ .host }}
@@ -25,7 +29,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ $.Chart.Name }}
+                name: {{ include "horizon-self-service-cicd-pipeline-ui-dashboard.fullname" $ }}
                 port:
                   number: {{ $.Values.service.port }}
           {{- end }}
