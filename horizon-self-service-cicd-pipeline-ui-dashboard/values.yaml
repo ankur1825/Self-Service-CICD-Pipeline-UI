@@ -63,18 +63,16 @@ probes:
 ingress:
   enabled: true
   className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    nginx.ingress.kubernetes.io/use-regex: "true"
+  annotations: {}
   hosts:
     - host: horizonrelevance.com
       paths:
-        - path: /pipeline(/|$)(.*)
-          pathType: ImplementationSpecific
+        - path: /pipeline
+          pathType: Prefix
   redirect:
     enabled: true
     annotations:
-      nginx.ingress.kubernetes.io/permanent-redirect: http://horizonrelevance.com/pipeline/
+      nginx.ingress.kubernetes.io/permanent-redirect: https://horizonrelevance.com/pipeline/
     hosts:
       - host: horizonrelevance.com
         paths:
@@ -88,8 +86,9 @@ persistence:
   size: 10Gi
 
 backendAlias:
-  enabled: false
-  name: horizon-backend
-  selector: {}
+  enabled: true
+  name: horizon-cloud-migration-backend
+  selector:
+    app: horizon-self-service-cicd-pipeline-backend
   port: 8000
   targetPort: 8000
