@@ -70,7 +70,7 @@ ingress:
         - path: /pipeline
           pathType: Prefix
   redirect:
-    enabled: true
+    enabled: false
     annotations:
       nginx.ingress.kubernetes.io/permanent-redirect: https://horizonrelevance.com/pipeline/
     hosts:
