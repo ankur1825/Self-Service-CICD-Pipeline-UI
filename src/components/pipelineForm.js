@@ -63,7 +63,15 @@ const PRICE_FALLBACK = {
   'm6i.xlarge': 0.192,
 };
 
-const PROJECT_TYPES = ['Docker', 'Angular', 'SpringBoot', 'SpringBoot-Java11', 'NodeJs', 'WebComponent'];
+const PROJECT_TYPES = [
+  { value: 'Auto', label: 'Auto-detect (recommended)' },
+  { value: 'Docker', label: 'Dockerfile' },
+  { value: 'Angular', label: 'Angular' },
+  { value: 'SpringBoot', label: 'Spring Boot' },
+  { value: 'SpringBoot-Java11', label: 'Spring Boot (Java 11)' },
+  { value: 'NodeJs', label: 'Node.js' },
+  { value: 'WebComponent', label: 'Web Component' },
+];
 const REPO_TYPES = ['GitHub', 'BitBucket', 'CodeCommit', 'S3'];
 const TARGET_ENVS = ['DEV', 'QA', 'STAGE'];
 const RELEASE_SOURCE_ENVS = ['DEV', 'QA', 'STAGE'];
@@ -511,7 +519,7 @@ function PipelineForm() {
   // NEW: Devops Pipeline form state
   const [devopsForm, setDevopsForm] = useState({
     project_name: '',
-    project_type: '',       // Docker | Angular | SpringBoot | SpringBoot-Java11 | NodeJs | WebComponent
+    project_type: 'Auto',
     repo_type: 'GitHub',
     repo_url: '',
     branch: 'main',
@@ -547,7 +555,7 @@ function PipelineForm() {
 
   const [testDevopsForm, setTestDevopsForm] = useState({
     project_name: '',
-    project_type: '',
+    project_type: 'Auto',
     repo_type: 'GitHub',
     repo_url: '',
     branch: 'main',
@@ -1634,15 +1642,16 @@ function PipelineForm() {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
-                    <InputLabel>Project Type</InputLabel>
+                    <InputLabel>Build Strategy</InputLabel>
                     <Select
                       value={devopsForm.project_type}
-                      label="Project Type"
+                      label="Build Strategy"
                       onChange={(e) => setDevopsForm(s => ({ ...s, project_type: e.target.value }))}
                       required
                     >
-                      {PROJECT_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                      {PROJECT_TYPES.map((type) => <MenuItem key={type.value} value={type.value}>{type.label}</MenuItem>)}
                     </Select>
+                    <FormHelperText>Detected from the repository after checkout. Override only for a non-standard build.</FormHelperText>
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} md={5}>
@@ -1747,10 +1756,11 @@ function PipelineForm() {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth size="small" sx={DEVOPS_FIELD_SX}>
-                    <InputLabel>Project Type</InputLabel>
-                    <Select value={testDevopsForm.project_type} label="Project Type" onChange={(e)=>setTestDevopsForm(s=>({...s,project_type:e.target.value}))} required>
-                      {PROJECT_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                    <InputLabel>Build Strategy</InputLabel>
+                    <Select value={testDevopsForm.project_type} label="Build Strategy" onChange={(e)=>setTestDevopsForm(s=>({...s,project_type:e.target.value}))} required>
+                      {PROJECT_TYPES.map((type) => <MenuItem key={type.value} value={type.value}>{type.label}</MenuItem>)}
                     </Select>
+                    <FormHelperText>Auto-detection is used for repository-aware validation unless explicitly overridden.</FormHelperText>
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} md={5}>
