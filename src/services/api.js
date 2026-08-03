@@ -1,14 +1,4 @@
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/pipeline/api';
-const LOGIN_URL = '/pipeline/login?reason=session-expired';
-let redirectingForExpiredSession = false;
-
-export function clearExpiredSession(navigate = (url) => window.location.replace(url)) {
-  localStorage.removeItem('user');
-  if (!redirectingForExpiredSession && window.location.pathname !== '/pipeline/login') {
-    redirectingForExpiredSession = true;
-    navigate(LOGIN_URL);
-  }
-}
 
 function authHeaders() {
   try {
@@ -34,10 +24,7 @@ export async function apiRequest(path, options = {}) {
   const body = contentType.includes('application/json') ? await response.json() : await response.text();
 
   if (!response.ok) {
-    if (response.status === 401 && path !== '/login') {
-      clearExpiredSession();
-    }
-    const message = typeof body === 'string' ? body : body?.detail || body?.error || body?.message || response.statusText;
+    const message = typeof body === 'string' ? body : body?.error || body?.message || response.statusText;
     const error = new Error(message);
     error.body = body;
     error.status = response.status;
@@ -47,11 +34,10 @@ export async function apiRequest(path, options = {}) {
   return body;
 }
 
-export async function callBackend(path, method = 'GET', payload = undefined, headers = {}) {
+export async function callBackend(path, method = 'GET', payload = undefined) {
   return apiRequest(path, {
     method,
     body: payload === undefined ? undefined : JSON.stringify(payload),
-    headers,
   });
 }
 

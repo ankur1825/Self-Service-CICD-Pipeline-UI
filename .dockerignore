@@ -3,10 +3,9 @@
 .containerignore
 .env
 .env.*
-.local
 node_modules
-build
 horizon-self-service-cicd-pipeline-ui-dashboard
+build
 *.log
 *.map
 coverage

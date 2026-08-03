@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Alert, TextField, Button, Typography, Container } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { TextField, Button, Typography, Container } from '@mui/material';
 import { callBackend } from '../services/api';
 
 function Login() {
-    const sessionExpired = new URLSearchParams(window.location.search).get('reason') === 'session-expired';
     const [form, setForm] = useState({ username: '', password: '' });
     const [error, setError] = useState('');
+    const navigate = useNavigate();
+
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
@@ -28,11 +30,6 @@ function Login() {
     return (
         <Container maxWidth="sm" style={{ marginTop: '50px' }}>
             <Typography variant="h5" gutterBottom>Login</Typography>
-            {sessionExpired && (
-                <Alert severity="warning" style={{ marginBottom: '16px' }}>
-                    Your session expired. Please sign in again to continue.
-                </Alert>
-            )}
             <form onSubmit={handleLogin}>
                 <TextField
                     fullWidth label="Username" name="username"

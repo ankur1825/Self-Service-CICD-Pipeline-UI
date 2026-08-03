@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
 import {
   Container, Typography, Chip, TextField, Button, Grid, Card, CardContent,
-  Tabs, Tab, Box, IconButton, Tooltip, Select, MenuItem, InputLabel, FormControl
+  Tabs, Tab, Box, IconButton, Tooltip
 } from '@mui/material';
 import { callBackend } from '../services/api';
+import ApplicationSelector from '../components/ApplicationSelector';
+import { getStoredUserEmail, loadUserApplications } from '../services/applications';
 import { saveAs } from 'file-saver';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
@@ -55,12 +57,11 @@ function VulnerabilitiesDashboard() {
   const [activeTab, setActiveTab] = useState('ALL');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const user = JSON.parse(localStorage.getItem("user"));
-  const userEmail = user?.email;
+  const userEmail = getStoredUserEmail();
 
   useEffect(() => {
     if (userEmail) {
-      callBackend(`/my_applications?email=${userEmail}`)
+      loadUserApplications(userEmail)
         .then(async (apps) => {
           if (Array.isArray(apps)) {
             setApplications(apps);
@@ -236,14 +237,11 @@ function VulnerabilitiesDashboard() {
     <Container maxWidth="xl" sx={{ mt: 4 }}>
       <Typography variant="h4" gutterBottom>Security Findings Dashboard</Typography>
 
-      <FormControl fullWidth sx={{ my: 2 }}>
-        <InputLabel>Select Application</InputLabel>
-        <Select value={selectedApp} onChange={(e) => setSelectedApp(e.target.value)} label="Select Application">
-          {Array.isArray(applications) && applications.map(app => (
-            <MenuItem key={app} value={app}>{app}</MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <ApplicationSelector
+        applications={applications}
+        value={selectedApp}
+        onChange={setSelectedApp}
+      />
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item>
