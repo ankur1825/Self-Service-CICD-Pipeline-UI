@@ -6,7 +6,8 @@ import VulnerabilitiesPage from './pages/VulnerabilitiesPage';
 import LicensePage from './pages/LicensePage';
 import ClientSettingsPage from './pages/ClientSettingsPage';
 import CloudConnectorPage from './pages/CloudConnectorPage';
-import CloudMigrationPage from './modules/cloudMigration/CloudMigrationPage';
+import ReleaseTrustDashboard from './pages/ReleaseTrustDashboard';
+import ReleaseTrustDetail from './pages/ReleaseTrustDetail';
 import { isPlatformAdmin } from './utils/authz';
 
 const PrivateRoute = ({ children }) => {
@@ -27,10 +28,11 @@ function App() {
                 <Route path="/" element={<PrivateRoute><PipelineForm /></PrivateRoute>} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/vulnerabilities" element={<PrivateRoute><VulnerabilitiesPage /></PrivateRoute>} />
+                <Route path="/release-trust" element={<PrivateRoute><ReleaseTrustDashboard /></PrivateRoute>} />
+                <Route path="/release-trust/:releaseId" element={<PrivateRoute><ReleaseTrustDetail /></PrivateRoute>} />
                 <Route path="/license" element={<PrivateRoute><AdminRoute><LicensePage /></AdminRoute></PrivateRoute>} />
                 <Route path="/client-settings" element={<PrivateRoute><AdminRoute><ClientSettingsPage /></AdminRoute></PrivateRoute>} />
                 <Route path="/environment-catalog" element={<PrivateRoute><AdminRoute><CloudConnectorPage /></AdminRoute></PrivateRoute>} />
-                <Route path="/cloud-migration" element={<PrivateRoute><CloudMigrationPage /></PrivateRoute>} />
                 <Route path="/cloud-connector" element={<Navigate to="/environment-catalog" replace />} />
             </Routes>
         </Router>
